@@ -1,14 +1,14 @@
 [project]
 name = "mcp-nano-banana"
-version = "0.2.1"
-requires-python = ">=3.10"
+version = "0.3.0"
+requires-python = "==3.10"
 description = "Um servidor MCP que gera imagens usando a Google Gemini API."
 readme = "README.md"
 dependencies = [
-    "mcp[cli]>=1.13",
-    "google-generativeai>=0.5.4",
-    "python-dotenv>=1.0.1",
-    "pillow>=11.3.0",
+    "mcp[cli]==1.13",
+    "google-generativeai==0.5.4",
+    "python-dotenv==1.0.1",
+    "pillow==11.3.0",
 ]
 
 [project.urls]

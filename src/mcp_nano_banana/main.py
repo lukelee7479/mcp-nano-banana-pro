@@ -4,8 +4,6 @@ import os
 import base64
 import uuid
 import json
-import httpx
-from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 import google.generativeai as genai
 import requests
@@ -13,7 +11,6 @@ from PIL import Image
 from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
-import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -517,20 +514,6 @@ async def edit_image(image_url: str, prompt: str) -> str:
                 "generation_stopped_error",
                 "Image editing was stopped by the API",
                 {"stop_reason": str(e)}
-            )
-        except genai.types.SafetySettingsException as e:
-            logger.error(f"Safety settings violation: {e}")
-            return create_error_response(
-                "safety_violation_error",
-                "Prompt violates safety settings",
-                {"violation_details": str(e)}
-            )
-        except genai.types.APIError as e:
-            logger.error(f"Gemini API error: {e}")
-            return create_error_response(
-                "api_error",
-                f"Gemini API error: {str(e)}",
-                {"api_error_code": getattr(e, 'code', 'unknown')}
             )
         except ImageGenerationError as e:
             logger.error(f"Image editing error: {e}")
