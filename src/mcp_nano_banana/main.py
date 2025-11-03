@@ -214,20 +214,6 @@ async def generate_image(prompt: str) -> str:
                 "Image generation was stopped by the API",
                 {"stop_reason": str(e)}
             )
-        except genai.types.SafetySettingsException as e:
-            logger.error(f"Safety settings violation: {e}")
-            return create_error_response(
-                "safety_violation_error",
-                "Prompt violates safety settings",
-                {"violation_details": str(e)}
-            )
-        except genai.types.APIError as e:
-            logger.error(f"Gemini API error: {e}")
-            return create_error_response(
-                "api_error",
-                f"Gemini API error: {str(e)}",
-                {"api_error_code": getattr(e, 'code', 'unknown')}
-            )
         except ImageGenerationError as e:
             logger.error(f"Image generation error: {e}")
             return create_error_response("image_generation_error", str(e))

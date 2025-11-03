@@ -1,6 +1,6 @@
 [project]
 name = "mcp-nano-banana"
-version = "0.3.0"
+version = "0.3.1"
 requires-python = "==3.10"
 description = "Um servidor MCP que gera imagens usando a Google Gemini API."
 readme = "README.md"
