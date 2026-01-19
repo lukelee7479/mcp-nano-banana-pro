@@ -8,7 +8,7 @@ import requests
 load_dotenv()
 
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+model = genai.GenerativeModel('gemini-2.5-flash-image')
 
 prompt = "Create nano-sized banana in a lab setting."
 response = model.generate_content([prompt])
