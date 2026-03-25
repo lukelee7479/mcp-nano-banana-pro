@@ -4,6 +4,8 @@
 
 This project is an MCP (Model Context Protocol) server that generates images using the Google Gemini API.
 
+Fork changed version to pro
+
 ## Description
 
 This server implements the Model Context Protocol to expose a single tool, `generate_image`, to a compatible AI model. The tool accepts a text prompt, uses the Google Gemini API to generate an image, saves the image to the `public/` directory for auditing, and returns the raw image data as a base64-encoded string.
@@ -65,7 +67,7 @@ Access https://api.imgbb.com/ to generate a IMGBB API Key. This is used to store
 This server is designed to be run as a subprocess by an MCP client or using the `mcp` command-line tool. The server listens for requests on `stdio`.
 
 ```bash
-uvx --from git+https://github.com/GuilhermeAumo/mcp-nano-banana mcp-nano-banana
+uvx --from git+https://github.com/lukelee7479/mcp-nano-banana-pro mcp-nano-banana-pro
 ```
 
 
