@@ -12,8 +12,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/GuilhermeAumo/mcp-nano-banana"
-Repository = "https://github.com/GuilhermeAumo/mcp-nano-banana"
+Homepage = "https://github.com/lukelee7479/mcp-nano-banana-pro"
+Repository = "https://github.com/lukelee7479/mcp-nano-banana-pro"
 
 [project.scripts]
 mcp-nano-banana-pro = "mcp_nano_banana.main:main"
