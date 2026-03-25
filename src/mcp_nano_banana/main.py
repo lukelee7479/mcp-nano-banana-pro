@@ -143,7 +143,7 @@ async def generate_image(prompt: str) -> str:
 
         # Image generation with specific error handling
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash-image')
+            model = genai.GenerativeModel('gemini-3-pro-image-preview')
             
             # Generate content with timeout handling
             response = await asyncio.wait_for(
@@ -440,7 +440,7 @@ async def edit_image(image_url: str, prompt: str) -> str:
 
         # Image editing with specific error handling
         try:
-            model = genai.GenerativeModel('gemini-2.5-flash-image')
+            model = genai.GenerativeModel('gemini-3-pro-image-preview')
 
             # Generate content with timeout handling
             response = await asyncio.wait_for(
