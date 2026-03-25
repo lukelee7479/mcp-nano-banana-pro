@@ -17,7 +17,7 @@ Access https://api.imgbb.com/ to generate a IMGBB API Key. This is used to store
 ```json
 {
   "mcpServers": {
-    "mcp-nano-banana": {
+    "mcp-nano-banana-pro": {
         "command": "uvx",
         "args": [
             "mcp-nano-banana"
