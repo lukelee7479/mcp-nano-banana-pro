@@ -1,5 +1,5 @@
 [project]
-name = "mcp-nano-banana"
+name = "mcp-nano-banana-pro"
 version = "0.3.3"
 requires-python = "==3.10"
 description = "Um servidor MCP que gera imagens usando a Google Gemini API."
@@ -16,7 +16,7 @@ Homepage = "https://github.com/GuilhermeAumo/mcp-nano-banana"
 Repository = "https://github.com/GuilhermeAumo/mcp-nano-banana"
 
 [project.scripts]
-mcp-nano-banana = "mcp_nano_banana.main:main"
+mcp-nano-banana-pro = "mcp_nano_banana.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
