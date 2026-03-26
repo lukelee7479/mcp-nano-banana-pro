@@ -22,7 +22,9 @@ Access https://api.imgbb.com/ to generate a IMGBB API Key. This is used to store
     "mcp-nano-banana-pro": {
         "command": "uvx",
         "args": [
-            "mcp-nano-banana-pro"
+            "--from",
+            "git+https://github.com/lukelee7479/mcp-nano-banana-pro",
+            "mcp-nano-banana"
         ],
         "env": {
             "GEMINI_API_KEY": "YOUR_API_KEY_HERE",
