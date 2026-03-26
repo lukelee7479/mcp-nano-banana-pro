@@ -12,7 +12,7 @@ from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 
-DEFAULT_MODEL = "gemini-3-pro-image-preview"
+DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
 
