@@ -13,7 +13,6 @@ from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 
 DEFAULT_MODEL = "gemini-3-pro-image-preview"
-DEFAULT_RESOLUTION = "HD(1280x720)"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
 
@@ -135,7 +134,6 @@ logger.info(f"MCP server '{mcp.name}' created.")
 )
 async def generate_image(
     prompt: str,
-    resolution: str = DEFAULT_RESOLUTION,
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
@@ -151,7 +149,7 @@ async def generate_image(
 
         logger.info(
             f"Tool 'generate_image' called with prompt: '{prompt}', "
-            f"resolution='{resolution}', thinking_level='{thinking_level}', "
+            f"thinking_level='{thinking_level}', "
             f"enable_grounding={enable_grounding}"
         )
 
@@ -166,7 +164,6 @@ async def generate_image(
 Generate a high-quality, detailed image of: {prompt}
 
 Requirements:
-- Target resolution: {resolution}
 - Thinking level: {thinking_level}
 - {grounding_instruction}
 - Prioritize crisp, legible text rendering.
@@ -358,7 +355,6 @@ Requirements:
 async def edit_image(
     image_url: str,
     prompt: str,
-    resolution: str = DEFAULT_RESOLUTION,
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
@@ -375,7 +371,7 @@ async def edit_image(
 
         logger.info(
             f"Tool 'edit_image' called with image_url: '{image_url}', prompt: '{prompt}', "
-            f"resolution='{resolution}', thinking_level='{thinking_level}', "
+            f"thinking_level='{thinking_level}', "
             f"enable_grounding={enable_grounding}"
         )
 
@@ -431,7 +427,6 @@ async def edit_image(
 Edit the provided image according to this instruction: {prompt}
 
 Requirements:
-- Target resolution: {resolution}
 - Thinking level: {thinking_level}
 - {grounding_instruction}
 - Preserve the overall subject and intent unless the prompt asks for a major change.
