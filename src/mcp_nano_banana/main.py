@@ -161,7 +161,7 @@ async def generate_image(
         )
 
         enhanced_prompt = f"""
-Generate a high-quality, detailed image of: {prompt}
+{prompt}
 
 Requirements:
 - Thinking level: {thinking_level}
