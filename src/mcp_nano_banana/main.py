@@ -173,7 +173,8 @@ Requirements:
 """.strip()
 
         # Image generation with specific error handling
-       try:
+        try:
+           
             client = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
 
             config_kwargs = {
@@ -622,7 +623,7 @@ def main():
         logger.info("Gemini API configured successfully.")
         logger.info("IMGBB_API_KEY API configured successfully.")
         logger.info("Starting MCP server via mcp.run()...")
-        asyncio.run(mcp.run())
+        mcp.run()
         
     except ValidationError as e:
         logger.error(f"Environment validation failed: {e}")
