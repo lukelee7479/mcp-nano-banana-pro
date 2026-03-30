@@ -19,7 +19,7 @@ from google.genai import errors as genai_errors
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
-DEFAULT_RESOLUTION = 1K
+DEFAULT_RESOLUTION = "1K"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -160,11 +160,6 @@ async def generate_image(
         )
 
         # Build enhanced prompt
-        grounding_instruction = (
-            "Use grounded real-world knowledge when it improves factuality, typography, object accuracy, branding-like layout fidelity, and scene coherence."
-            if enable_grounding
-            else "Do not rely on extra grounded real-world knowledge unless strictly necessary."
-        )
 
         enhanced_prompt = f"""
 {prompt}
@@ -186,7 +181,9 @@ Requirements:
                 "thinking_config": types.ThinkingConfig(
                     thinking_level=thinking_level.capitalize(),
                     include_thoughts=False,
-                    resolution=resolution,
+                ),
+                "image_config:": types.ImageConfig(
+                    image_size=resolution,
                 ),
             }
 
@@ -214,6 +211,9 @@ Requirements:
             image_data_base64 = None
 
             for part in parts:
+                if getattr(part, "thought", False):
+                    continue
+
                 inline_data = getattr(part, "inline_data", None)
                 if not inline_data:
                     continue
@@ -422,11 +422,6 @@ async def edit_image(
             )
 
         # Build enhanced prompt
-        grounding_instruction = (
-            "Use grounded real-world knowledge when it improves factuality, typography, object accuracy, branding-like layout fidelity, and scene coherence."
-            if enable_grounding
-            else "Do not rely on extra grounded real-world knowledge unless strictly necessary."
-        )
 
         enhanced_prompt = f"""
 Edit the provided image according to this instruction: {prompt}
@@ -449,7 +444,9 @@ Requirements:
                 "thinking_config": types.ThinkingConfig(
                     thinking_level=thinking_level.capitalize(),
                     include_thoughts=False,
-                    resolution=resolution,
+                ),
+                "image_config:": types.ImageConfig(
+                    image_size=resolution,
                 ),
             }
 
@@ -459,7 +456,7 @@ Requirements:
             response = await asyncio.wait_for(
                 client.aio.models.generate_content(
                     model=DEFAULT_MODEL,
-                    contents=[input_image, enhanced_prompt],
+                    contents=[image, enhanced_prompt],
                     config=types.GenerateContentConfig(**config_kwargs),
                 ),
                 timeout=120,
@@ -619,13 +616,11 @@ Requirements:
 def main():
     try:
         # Validate environment variables
-        env_vars = validate_environment_variables()
+        validate_environment_variables()
         
         # Configure the Gemini API client
-        genai.configure(api_key=env_vars['GEMINI_API_KEY'])
         logger.info("Gemini API configured successfully.")
         logger.info("IMGBB_API_KEY API configured successfully.")
-
         logger.info("Starting MCP server via mcp.run()...")
         asyncio.run(mcp.run())
         
