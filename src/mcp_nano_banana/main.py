@@ -182,7 +182,7 @@ Requirements:
                     thinking_level=thinking_level.capitalize(),
                     include_thoughts=False,
                 ),
-                "image_config:": types.ImageConfig(
+                "image_config": types.ImageConfig(
                     image_size=resolution,
                 ),
             }
@@ -445,7 +445,7 @@ Requirements:
                     thinking_level=thinking_level.capitalize(),
                     include_thoughts=False,
                 ),
-                "image_config:": types.ImageConfig(
+                "image_config": types.ImageConfig(
                     image_size=resolution,
                 ),
             }
