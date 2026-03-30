@@ -4,17 +4,22 @@ import os
 import base64
 import uuid
 import json
-from mcp.server.fastmcp import FastMCP
-import google.generativeai as genai
 import requests
-from PIL import Image
+
 from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 
+from PIL import Image
+from mcp.server.fastmcp import FastMCP
+from google import genai
+from google.genai import types
+from google.genai import errors as genai_errors
+
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
+DEFAULT_RESOLUTION = 1K
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -136,6 +141,7 @@ async def generate_image(
     prompt: str,
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    resolution : str = DEFAULT_RESOLUTION,
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
@@ -164,8 +170,6 @@ async def generate_image(
 {prompt}
 
 Requirements:
-- Thinking level: {thinking_level}
-- {grounding_instruction}
 - Prioritize crisp, legible text rendering.
 - Avoid broken, warped, melted, duplicated, or nonsensical letters.
 - If the image contains signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
@@ -174,54 +178,62 @@ Requirements:
 """.strip()
 
         # Image generation with specific error handling
-        try:
-            model = genai.GenerativeModel(DEFAULT_MODEL)
+       try:
+            client = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
+
+            config_kwargs = {
+                "response_modalities": ["TEXT", "IMAGE"],
+                "thinking_config": types.ThinkingConfig(
+                    thinking_level=thinking_level.capitalize(),
+                    include_thoughts=False,
+                    resolution=resolution,
+                ),
+            }
+
+            # Preserve enable_grounding semantics in the SDK config as well.
+            # Official docs show google_search as a tool option in GenerateContentConfig.
+            if enable_grounding:
+                config_kwargs["tools"] = [{"google_search": {}}]
 
             response = await asyncio.wait_for(
-                model.generate_content_async([enhanced_prompt]),
-                timeout=120
+                client.aio.models.generate_content(
+                    model=DEFAULT_MODEL,
+                    contents=enhanced_prompt,
+                    config=types.GenerateContentConfig(**config_kwargs),
+                ),
+                timeout=120,
             )
 
             if not response:
                 raise ImageGenerationError("Gemini API returned empty response")
 
-            if not hasattr(response, 'candidates') or not response.candidates:
-                raise ImageGenerationError("No candidates returned from Gemini API")
-
-            candidate = response.candidates[0]
-
-            if not hasattr(candidate, 'content') or not candidate.content:
-                raise ImageGenerationError("Invalid candidate structure: missing 'content' field")
-
-            if not hasattr(candidate.content, 'parts') or not candidate.content.parts:
-                raise ImageGenerationError("Invalid content structure: missing 'parts' field")
-
-            parts = candidate.content.parts
+            parts = getattr(response, "parts", None)
             if not parts:
-                raise ImageGenerationError("No parts returned in content")
+                raise ImageGenerationError("No parts returned from Gemini API")
 
-            last_part = parts[-1]
+            image_data_base64 = None
 
-            if not hasattr(last_part, 'inline_data') or not last_part.inline_data:
-                raise ImageGenerationError("Last part does not contain image data")
+            for part in parts:
+                inline_data = getattr(part, "inline_data", None)
+                if not inline_data:
+                    continue
 
-            if not hasattr(last_part.inline_data, 'data') or not last_part.inline_data.data:
-                raise ImageGenerationError("Image data field is missing")
+                raw_data = getattr(inline_data, "data", None)
+                if not raw_data:
+                    continue
 
-            raw_data = last_part.inline_data.data
-
-            if isinstance(raw_data, bytes):
-                image_data_base64 = base64.b64encode(raw_data).decode('utf-8')
-            elif isinstance(raw_data, str):
-                if raw_data.startswith('data:'):
-                    image_data_base64 = raw_data.split(',', 1)[1]
-                else:
-                    image_data_base64 = raw_data.strip()
-            else:
-                raise ImageGenerationError(f"Unexpected data type: {type(raw_data)}")
+                if isinstance(raw_data, bytes):
+                    image_data_base64 = base64.b64encode(raw_data).decode("utf-8")
+                    break
+                elif isinstance(raw_data, str):
+                    if raw_data.startswith("data:"):
+                        image_data_base64 = raw_data.split(",", 1)[1]
+                    else:
+                        image_data_base64 = raw_data.strip()
+                    break
 
             if not image_data_base64:
-                raise ImageGenerationError("Empty image data received")
+                raise ImageGenerationError("No image data found in response")
 
             try:
                 base64.b64decode(image_data_base64, validate=True)
@@ -235,19 +247,11 @@ Requirements:
                 "Image generation timed out after 2 minutes",
                 {"timeout_seconds": 120}
             )
-        except genai.types.BlockedPromptException as e:
-            logger.error(f"Prompt blocked by Gemini API: {e}")
+        except genai_errors.APIError as e:
+            logger.exception(f"Gemini API error: {e}")
             return create_error_response(
-                "content_policy_error",
-                "Prompt was blocked by content policy",
-                {"blocked_reason": str(e)}
-            )
-        except genai.types.StopCandidateException as e:
-            logger.error(f"Generation stopped by Gemini API: {e}")
-            return create_error_response(
-                "generation_stopped_error",
-                "Image generation was stopped by the API",
-                {"stop_reason": str(e)}
+                "gemini_api_error",
+                f"Gemini API error: {str(e)}",
             )
         except ImageGenerationError as e:
             logger.error(f"Image generation error: {e}")
@@ -357,6 +361,7 @@ async def edit_image(
     prompt: str,
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    resolution: str = DEFAULT_RESOLUTION,
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
@@ -427,9 +432,7 @@ async def edit_image(
 Edit the provided image according to this instruction: {prompt}
 
 Requirements:
-- Thinking level: {thinking_level}
-- {grounding_instruction}
-- Preserve the overall subject and intent unless the prompt asks for a major change.
+- Preserve the main subject identity and the important visual structure of the original image unless the prompt explicitly asks to change them.
 - Prioritize crisp, legible text rendering.
 - Avoid broken, warped, melted, duplicated, or nonsensical letters.
 - If the edit involves signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
@@ -439,53 +442,62 @@ Requirements:
 
         # Image editing with specific error handling
         try:
-            model = genai.GenerativeModel(DEFAULT_MODEL)
+            client = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
+
+            config_kwargs = {
+                "response_modalities": ["TEXT", "IMAGE"],
+                "thinking_config": types.ThinkingConfig(
+                    thinking_level=thinking_level.capitalize(),
+                    include_thoughts=False,
+                    resolution=resolution,
+                ),
+            }
+
+            if enable_grounding:
+                config_kwargs["tools"] = [{"google_search": {}}]
 
             response = await asyncio.wait_for(
-                model.generate_content_async([enhanced_prompt, image]),
-                timeout=120
+                client.aio.models.generate_content(
+                    model=DEFAULT_MODEL,
+                    contents=[input_image, enhanced_prompt],
+                    config=types.GenerateContentConfig(**config_kwargs),
+                ),
+                timeout=120,
             )
 
             if not response:
                 raise ImageGenerationError("Gemini API returned empty response")
 
-            if not hasattr(response, 'candidates') or not response.candidates:
-                raise ImageGenerationError("No candidates returned from Gemini API")
-
-            candidate = response.candidates[0]
-
-            if not hasattr(candidate, 'content') or not candidate.content:
-                raise ImageGenerationError("Invalid candidate structure: missing 'content' field")
-
-            if not hasattr(candidate.content, 'parts') or not candidate.content.parts:
-                raise ImageGenerationError("Invalid content structure: missing 'parts' field")
-
-            parts = candidate.content.parts
+            parts = getattr(response, "parts", None)
             if not parts:
-                raise ImageGenerationError("No parts returned in content")
+                raise ImageGenerationError("No parts returned from Gemini API")
 
-            last_part = parts[-1]
+            image_data_base64 = None
 
-            if not hasattr(last_part, 'inline_data') or not last_part.inline_data:
-                raise ImageGenerationError("Last part does not contain image data")
+            for part in parts:
+                if getattr(part, "thought", False):
+                    continue
 
-            if not hasattr(last_part.inline_data, 'data') or not last_part.inline_data.data:
-                raise ImageGenerationError("Image data field is missing")
+                inline_data = getattr(part, "inline_data", None)
+                if not inline_data:
+                    continue
 
-            raw_data = last_part.inline_data.data
+                raw_data = getattr(inline_data, "data", None)
+                if not raw_data:
+                    continue
 
-            if isinstance(raw_data, bytes):
-                image_data_base64 = base64.b64encode(raw_data).decode('utf-8')
-            elif isinstance(raw_data, str):
-                if raw_data.startswith('data:'):
-                    image_data_base64 = raw_data.split(',', 1)[1]
-                else:
-                    image_data_base64 = raw_data.strip()
-            else:
-                raise ImageGenerationError(f"Unexpected data type: {type(raw_data)}")
+                if isinstance(raw_data, bytes):
+                    image_data_base64 = base64.b64encode(raw_data).decode("utf-8")
+                    break
+                elif isinstance(raw_data, str):
+                    if raw_data.startswith("data:"):
+                        image_data_base64 = raw_data.split(",", 1)[1]
+                    else:
+                        image_data_base64 = raw_data.strip()
+                    break
 
             if not image_data_base64:
-                raise ImageGenerationError("Empty image data received")
+                raise ImageGenerationError("No image data found in response")
 
             try:
                 base64.b64decode(image_data_base64, validate=True)
@@ -499,19 +511,11 @@ Requirements:
                 "Image editing timed out after 2 minutes",
                 {"timeout_seconds": 120}
             )
-        except genai.types.BlockedPromptException as e:
-            logger.error(f"Prompt blocked by Gemini API: {e}")
+        except genai_errors.APIError as e:
+            logger.exception(f"Gemini API error: {e}")
             return create_error_response(
-                "content_policy_error",
-                "Prompt was blocked by content policy",
-                {"blocked_reason": str(e)}
-            )
-        except genai.types.StopCandidateException as e:
-            logger.error(f"Editing stopped by Gemini API: {e}")
-            return create_error_response(
-                "generation_stopped_error",
-                "Image editing was stopped by the API",
-                {"stop_reason": str(e)}
+                "gemini_api_error",
+                f"Gemini API error: {str(e)}",
             )
         except ImageGenerationError as e:
             logger.error(f"Image editing error: {e}")
