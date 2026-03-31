@@ -21,7 +21,7 @@ active_image_requests = set()
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
-DEFAULT_RESOLUTION = "1K"
+DEFAULT_RESOLUTION = "2K"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
