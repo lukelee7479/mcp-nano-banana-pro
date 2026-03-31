@@ -16,7 +16,7 @@ from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
 
-DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+DEFAULT_MODEL = "gemini-3-pro-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
 DEFAULT_RESOLUTION = "1K"
