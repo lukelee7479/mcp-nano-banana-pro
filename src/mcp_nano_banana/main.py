@@ -453,7 +453,7 @@ async def edit_image(
 
             image = Image.open(BytesIO(image_data))
 
-       except Exception as e:
+        except Exception as e:
             logger.exception(f"Unexpected error during image download/open: {e}")
             raise APIError(f"Failed to download or open image: {str(e)}")
 
