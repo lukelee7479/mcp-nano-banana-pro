@@ -453,12 +453,9 @@ async def edit_image(
 
             image = Image.open(BytesIO(image_data))
 
-        except Exception as e:
+       except Exception as e:
             logger.exception(f"Unexpected error during image download/open: {e}")
-            return create_error_response(
-                "image_download_error",
-                f"Failed to download or open image: {str(e)}"
-            )
+            raise APIError(f"Failed to download or open image: {str(e)}")
 
         # Build enhanced prompt
 
@@ -543,26 +540,16 @@ Requirements:
 
         except asyncio.TimeoutError:
             logger.error("Image editing timed out")
-            return create_error_response(
-                "timeout_error",
-                "Image editing timed out after 2 minutes",
-                {"timeout_seconds": 120}
-            )
+            raise APIError("Image editing timed out after 2 minutes")
         except genai_errors.APIError as e:
             logger.exception(f"Gemini API error: {e}")
-            return create_error_response(
-                "gemini_api_error",
-                f"Gemini API error: {str(e)}",
-            )
+            raise APIError(f"Gemini API error: {str(e)}")
         except ImageGenerationError as e:
             logger.error(f"Image editing error: {e}")
-            return create_error_response("image_generation_error", str(e))
+            raise e
         except Exception as e:
             logger.exception(f"Unexpected error during image editing: {e}")
-            return create_error_response(
-                "unexpected_error",
-                f"Unexpected error during image editing: {str(e)}"
-            )
+            raise e
 
         # Image upload
         try:
@@ -622,7 +609,7 @@ Requirements:
             logger.exception(f"Unexpected error during image upload: {e}")
             raise e
 
-   except ValidationError as e:
+    except ValidationError as e:
         logger.error(f"Validation error: {e}")
         if not task_future.done():
             task_future.set_exception(e)
