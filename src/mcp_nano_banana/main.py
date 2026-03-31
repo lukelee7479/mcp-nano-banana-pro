@@ -152,6 +152,7 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
+    request_key = prompt.strip().lower()
     if request_key in active_image_requests:
         logger.warning(f"Duplicate request blocked for prompt: {prompt}")
         return create_error_response(
@@ -360,12 +361,6 @@ Requirements:
                 "unexpected_error",
                 f"Unexpected error during image upload: {str(e)}"
             )
-
-
-
-
-    logger.info(f"Image uploaded successfully to {uploaded_url}")
-        return create_success_response({"url": uploaded_url})
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
