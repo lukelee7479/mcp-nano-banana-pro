@@ -4,7 +4,7 @@
 
 This project is an MCP (Model Context Protocol) server that generates images using the Google Gemini API.
 
-Fork changed version to pro
+Fork changed version to pro. but again changed to v.2 due to the speed.
 
 ## Description
 
