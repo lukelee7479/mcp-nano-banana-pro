@@ -135,7 +135,11 @@ logger.info(f"MCP server '{mcp.name}' created.")
 # --- Tool Definition ---
 @mcp.tool(
     name="generate_image",
-    description="Generates an image based on a text prompt using the Gemini API and returns the image as a url.",
+    description=(
+        "Generates an image based on a text prompt using the Gemini API and returns the image as a url."
+        "IMPORTANT: You MUST call this tool EXACTLY ONCE per user request. "
+        "Do NOT call this tool multiple times in parallel or sequentially for a single image generation task."
+    ),
 )
 async def generate_image(
     prompt: str,
@@ -355,7 +359,11 @@ Requirements:
 
 @mcp.tool(
     name="edit_image",
-    description="Edits an existing image based on a text prompt using the Gemini API. Takes an image URL and a prompt, then returns the edited image as a URL.",
+    description=(
+        "Edits an existing image based on a text prompt using the Gemini API. Takes an image URL and a prompt, then returns the edited image as a URL."
+        "IMPORTANT: You MUST call this tool EXACTLY ONCE per user request. "
+        "Do NOT call this tool multiple times in parallel or sequentially for a single image generation task."
+    ),
 )
 async def edit_image(
     image_url: str,
