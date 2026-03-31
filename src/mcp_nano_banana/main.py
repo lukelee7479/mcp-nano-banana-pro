@@ -16,6 +16,8 @@ from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
 
+active_image_requests = set()
+
 DEFAULT_MODEL = "gemini-3-pro-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
@@ -150,6 +152,17 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
+    if request_key in active_image_requests:
+        logger.warning(f"Duplicate request blocked for prompt: {prompt}")
+        return create_error_response(
+            "duplicate_request", 
+            "An image generation for this exact prompt is already in progress. Please wait for the first request to complete."
+        )
+    
+    active_image_requests.add(request_key)
+
+
+    
     try:
         # Input validation
         validate_prompt(prompt)
@@ -245,6 +258,7 @@ Requirements:
             except Exception as e:
                 raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
 
+        
         except asyncio.TimeoutError:
             logger.error("Image generation timed out")
             return create_error_response(
@@ -347,6 +361,12 @@ Requirements:
                 f"Unexpected error during image upload: {str(e)}"
             )
 
+
+
+
+    logger.info(f"Image uploaded successfully to {uploaded_url}")
+        return create_success_response({"url": uploaded_url})
+
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
         return create_error_response("validation_error", str(e))
@@ -356,6 +376,10 @@ Requirements:
             "unexpected_error",
             f"Unexpected error: {str(e)}"
         )
+    finally: 
+        if request_key in active_image_requests:
+            active_image_requests.remove(request_key)
+
 
 @mcp.tool(
     name="edit_image",
