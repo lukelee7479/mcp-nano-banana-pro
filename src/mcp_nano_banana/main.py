@@ -292,7 +292,7 @@ Requirements:
                 f"Unexpected error during image generation: {str(e)}"
             )
 
-        # Image upload with specific error handling
+  # Image upload with specific error handling
         try:
             upload_url = "https://api.imgbb.com/1/upload"
 
@@ -336,66 +336,42 @@ Requirements:
             validate_image_url(uploaded_url)
 
             logger.info(f"Image uploaded successfully to {uploaded_url}")
+            
+            # url_deliver
+            if not task_future.done():
+                task_future.set_result(uploaded_url)
+                
             return create_success_response({"url": uploaded_url})
 
+        # error_notice
         except requests.exceptions.HTTPError as e:
-            status_code = e.response.status_code
-            if status_code == 400:
-                error_msg = "Bad request to ImgBB API"
-            elif status_code == 401:
-                error_msg = "Invalid ImgBB API key"
-            elif status_code == 403:
-                error_msg = "ImgBB API access forbidden"
-            elif status_code == 413:
-                error_msg = "Image file too large for ImgBB"
-            elif status_code == 429:
-                error_msg = "ImgBB API rate limit exceeded"
-            elif status_code >= 500:
-                error_msg = "ImgBB server error"
-            else:
-                error_msg = f"HTTP error {status_code}"
-
             logger.error(f"ImgBB HTTP error: {e}")
-            return create_error_response(
-                "upload_http_error",
-                error_msg,
-                {"status_code": status_code, "response_text": e.response.text}
-            )
+            raise APIError(f"HTTP error {e.response.status_code}")
         except ImageUploadError as e:
             logger.error(f"Image upload error: {e}")
-            return create_error_response("image_upload_error", str(e))
+            raise e
         except Exception as e:
             logger.exception(f"Unexpected error during image upload: {e}")
-            return create_error_response(
-                "unexpected_error",
-                f"Unexpected error during image upload: {str(e)}"
-            )
-            
-            uploaded_url = response.json()["data"]["url"]
-            logger.info(f"Image uploaded successfully to {uploaded_url}")
-            task_future.set_result(uploaded_url)
-        
-            return create_success_response({"url": uploaded_url})
+            raise e
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
+        if not task_future.done():
+            task_future.set_exception(e)
+        image_tasks.pop(cache_key, None)
         return create_error_response("validation_error", str(e))
+        
     except Exception as e:
         logger.exception(f"Unexpected error in generating or uploading_image: {e}")
-
-        # 4. In case fails
         if not task_future.done():
             task_future.set_exception(e)
         
-        # erase dictionay
         image_tasks.pop(cache_key, None)
         
         return create_error_response(
             "unexpected_error",
             f"Unexpected error: {str(e)}"
         )
-
-
 
 @mcp.tool(
     name="edit_image",
