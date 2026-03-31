@@ -391,6 +391,20 @@ async def edit_image(
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
     """
+    cache_key = f"{prompt.strip().lower()}|{image_url.strip()}"
+
+    if cache_key in edit_image_tasks:
+        logger.info(f"Duplicate edit request detected. Waiting for task. Prompt: {prompt}")
+        try:
+            uploaded_url = await edit_image_tasks[cache_key]
+            return create_success_response({"url": uploaded_url})
+        except Exception:
+            pass
+            
+    loop = asyncio.get_running_loop()
+    task_future = loop.create_future()
+    edit_image_tasks[cache_key] = task_future
+    
     try:
         # Input validation
         validate_prompt(prompt)
@@ -594,46 +608,32 @@ Requirements:
             validate_image_url(uploaded_url)
 
             logger.info(f"Edited image uploaded successfully to {uploaded_url}")
+            if not task_future.done():
+                task_future.set_result(uploaded_url)
             return create_success_response({"url": uploaded_url})
 
         except requests.exceptions.HTTPError as e:
-            status_code = e.response.status_code
-            if status_code == 400:
-                error_msg = "Bad request to ImgBB API"
-            elif status_code == 401:
-                error_msg = "Invalid ImgBB API key"
-            elif status_code == 403:
-                error_msg = "ImgBB API access forbidden"
-            elif status_code == 413:
-                error_msg = "Image file too large for ImgBB"
-            elif status_code == 429:
-                error_msg = "ImgBB API rate limit exceeded"
-            elif status_code >= 500:
-                error_msg = "ImgBB server error"
-            else:
-                error_msg = f"HTTP error {status_code}"
-
             logger.error(f"ImgBB HTTP error: {e}")
-            return create_error_response(
-                "upload_http_error",
-                error_msg,
-                {"status_code": status_code, "response_text": e.response.text}
-            )
+            raise APIError(f"HTTP error {e.response.status_code}")
         except ImageUploadError as e:
             logger.error(f"Image upload error: {e}")
-            return create_error_response("image_upload_error", str(e))
+            raise e
         except Exception as e:
             logger.exception(f"Unexpected error during image upload: {e}")
-            return create_error_response(
-                "unexpected_error",
-                f"Unexpected error during image upload: {str(e)}"
-            )
+            raise e
 
-    except ValidationError as e:
+   except ValidationError as e:
         logger.error(f"Validation error: {e}")
+        if not task_future.done():
+            task_future.set_exception(e)
+        edit_image_tasks.pop(cache_key, None)
         return create_error_response("validation_error", str(e))
+        
     except Exception as e:
-        logger.exception(f"Unexpected error in edit_image: {e}")
+        logger.exception(f"Unexpected error in editing or uploading_image: {e}")
+        if not task_future.done():
+            task_future.set_exception(e)
+        edit_image_tasks.pop(cache_key, None)
         return create_error_response(
             "unexpected_error",
             f"Unexpected error: {str(e)}"
