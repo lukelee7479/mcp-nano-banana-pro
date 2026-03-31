@@ -16,12 +16,12 @@ from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
 
-active_image_requests = set()
+image_tasks = {}
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = True
-DEFAULT_RESOLUTION = "2K"
+DEFAULT_RESOLUTION = "1K"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -152,15 +152,23 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
-    request_key = prompt.strip().lower()
-    if request_key in active_image_requests:
-        logger.warning(f"Duplicate request blocked for prompt: {prompt}")
-        return create_error_response(
-            "duplicate_request", 
-            "An image generation for this exact prompt is already in progress. Please wait for the first request to complete."
-        )
-    
-    active_image_requests.add(request_key)
+    cache_key = prompt.strip().lower()
+
+    # 1. same job running
+    if cache_key in image_tasks:
+        logger.info(f"Duplicate request detected. Waiting for the existing task for prompt: {prompt}")
+        try:
+            # 먼저 시작된 작업이 끝날 때까지 기다렸다가(await) 완성된 URL을 받습니다.
+            uploaded_url = await image_tasks[cache_key]
+            return create_success_response({"url": uploaded_url})
+        except Exception:
+            # 만약 먼저 시작된 작업이 에러가 났다면, 무시하고 아래로 내려가서 새로 시도합니다.
+            pass
+
+    # 2. first request
+    loop = asyncio.get_running_loop()
+    task_future = loop.create_future()
+    image_tasks[cache_key] = task_future
 
 
     
@@ -188,6 +196,7 @@ Requirements:
 - If the image contains signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
 - Preserve correct spacing, alignment, and character shapes.
 - Favor clean composition and high visual fidelity.
+- Do not misspell or distort the letters
 """.strip()
 
         # Image generation with specific error handling
@@ -361,19 +370,31 @@ Requirements:
                 "unexpected_error",
                 f"Unexpected error during image upload: {str(e)}"
             )
+            
+            uploaded_url = response.json()["data"]["url"]
+            logger.info(f"Image uploaded successfully to {uploaded_url}")
+            task_future.set_result(uploaded_url)
+        
+            return create_success_response({"url": uploaded_url})
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
         return create_error_response("validation_error", str(e))
     except Exception as e:
-        logger.exception(f"Unexpected error in generate_image: {e}")
+        logger.exception(f"Unexpected error in generating or uploading_image: {e}")
+
+        # 4. In case fails
+        if not task_future.done():
+            task_future.set_exception(e)
+        
+        # erase dictionay
+        image_tasks.pop(cache_key, None)
+        
         return create_error_response(
             "unexpected_error",
             f"Unexpected error: {str(e)}"
         )
-    finally: 
-        if request_key in active_image_requests:
-            active_image_requests.remove(request_key)
+
 
 
 @mcp.tool(
@@ -461,6 +482,7 @@ Requirements:
 - If the edit involves signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
 - Preserve correct spacing, alignment, and character shapes.
 - Maintain high visual fidelity and coherent composition.
+- Do not misspell or distort the letters
 """.strip()
 
         # Image editing with specific error handling
