@@ -17,10 +17,11 @@ from google.genai import types
 from google.genai import errors as genai_errors
 
 image_tasks = {}
+edit_image_tasks = {}
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL = "HIGH"
-DEFAULT_ENABLE_GROUNDING = True
+DEFAULT_THINKING_LEVEL = "LOW"
+DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION = "1K"
 
 # Configure logging
@@ -296,7 +297,7 @@ Requirements:
         try:
             upload_url = "https://api.imgbb.com/1/upload"
 
-            image_size = len(base64.b64decode(image_data_base64))
+            image_size = (len(image_data_base64) * 3) // 4
             if image_size > 32 * 1024 * 1024:
                 raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
 
@@ -555,7 +556,7 @@ Requirements:
         try:
             upload_url = "https://api.imgbb.com/1/upload"
 
-            image_size = len(base64.b64decode(image_data_base64))
+            image_size = (len(image_data_base64) * 3) // 4
             if image_size > 32 * 1024 * 1024:
                 raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
 
