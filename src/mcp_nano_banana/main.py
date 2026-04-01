@@ -4,7 +4,7 @@ import os
 import base64
 import uuid
 import json
-import requests
+import httpx
 
 from io import BytesIO
 from urllib.parse import urlparse
@@ -327,21 +327,22 @@ Requirements:
             }
 
             max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    resp = requests.post(upload_url, data=payload, timeout=60)
-                    resp.raise_for_status()
-                    break
-                except requests.exceptions.Timeout:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except requests.exceptions.ConnectionError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+            async with httpx.AsyncClient() as client:
+                for attempt in range(max_retries):
+                    try:
+                        resp = await client.post(upload_url, data=payload, timeout=60.0)
+                        resp.raise_for_status()
+                        break
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError("Upload timed out after multiple attempts")
+                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
             resp_json = resp.json()
 
@@ -364,7 +365,7 @@ Requirements:
             return create_success_response({"url": uploaded_url})
 
         # error_notice
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             logger.error(f"ImgBB HTTP error: {e}")
             raise APIError(f"HTTP error {e.response.status_code}")
         except ImageUploadError as e:
@@ -444,29 +445,31 @@ async def edit_image(
             max_retries = 3
             image_data = None
 
-            for attempt in range(max_retries):
-                try:
-                    response = requests.get(image_url, timeout=30)
-                    response.raise_for_status()
+            async with httpx.AsyncClient() as client:
+                for attempt in range(max_retries):
+                    try:
+                        # await를 사용하여 비동기적으로 GET 요청 전송
+                        response = await client.get(image_url, timeout=30.0)
+                        response.raise_for_status()
 
-                    content_type = response.headers.get('content-type', '').lower()
-                    if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
-                        raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
+                        content_type = response.headers.get('content-type', '').lower()
+                        if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
+                            raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
 
-                    image_data = response.content
-                    break
+                        image_data = response.content
+                        break
 
-                except requests.exceptions.Timeout:
-                    if attempt == max_retries - 1:
-                        raise ValidationError("Image download timed out after multiple attempts")
-                    logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ValidationError("Image download timed out after multiple attempts")
+                        logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
-                except requests.exceptions.ConnectionError as e:
-                    if attempt == max_retries - 1:
-                        raise ValidationError(f"Connection error during image download: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ValidationError(f"Connection error during image download: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
             if not image_data:
                 raise ValidationError("No image data downloaded")
@@ -586,21 +589,23 @@ Requirements:
             }
 
             max_retries = 3
-            for attempt in range(max_retries):
-                try:
-                    resp = requests.post(upload_url, data=payload, timeout=60)
-                    resp.raise_for_status()
-                    break
-                except requests.exceptions.Timeout:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except requests.exceptions.ConnectionError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+            async with httpx.AsyncClient() as client:
+                for attempt in range(max_retries):
+                    try:
+                        # await를 사용하여 비동기적으로 POST 요청 전송
+                        resp = await client.post(upload_url, data=payload, timeout=60.0)
+                        resp.raise_for_status()
+                        break
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError("Upload timed out after multiple attempts")
+                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
             resp_json = resp.json()
 
@@ -619,7 +624,7 @@ Requirements:
                 task_future.set_result(uploaded_url)
             return create_success_response({"url": uploaded_url})
 
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPStatusError as e:
             logger.error(f"ImgBB HTTP error: {e}")
             raise APIError(f"HTTP error {e.response.status_code}")
         except ImageUploadError as e:
