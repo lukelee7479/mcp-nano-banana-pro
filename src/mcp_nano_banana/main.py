@@ -24,6 +24,25 @@ DEFAULT_THINKING_LEVEL = "LOW"
 DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION = "1K"
 
+GENAI_CLIENT = None
+ENV_VARS = None
+
+def get_env_vars() -> Dict[str, str]:
+    global ENV_VARS
+    if ENV_VARS is None:
+        ENV_VARS = validate_environment_variables()
+    return ENV_VARS
+
+def get_genai_client():
+    global GENAI_CLIENT
+    if GENAI_CLIENT is None:
+        env_vars = get_env_vars()
+        GENAI_CLIENT = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
+    return GENAI_CLIENT
+
+
+
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -178,7 +197,7 @@ async def generate_image(
         validate_prompt(prompt)
 
         # Environment validation
-        env_vars = validate_environment_variables()
+        env_vars = get_env_vars()
 
         logger.info(
             f"Tool 'generate_image' called with prompt: '{prompt}', "
@@ -203,7 +222,7 @@ Requirements:
         # Image generation with specific error handling
         try:
            
-            client = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
+            client = get_genai_client()
 
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
@@ -412,7 +431,7 @@ async def edit_image(
         validate_image_url(image_url)
 
         # Environment validation
-        env_vars = validate_environment_variables()
+        env_vars = get_env_vars()
 
         logger.info(
             f"Tool 'edit_image' called with image_url: '{image_url}', prompt: '{prompt}', "
@@ -475,7 +494,7 @@ Requirements:
 
         # Image editing with specific error handling
         try:
-            client = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
+            client = get_genai_client()
 
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
@@ -630,7 +649,8 @@ Requirements:
 def main():
     try:
         # Validate environment variables
-        validate_environment_variables()
+        get_env_vars()
+        get_genai_client()
         
         # Configure the Gemini API client
         logger.info("Gemini API configured successfully.")
