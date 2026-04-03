@@ -478,7 +478,7 @@ async def edit_image(
                     logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
                     await asyncio.sleep(2 ** attempt)
 
-                  except httpx.RequestError as e:
+                except httpx.RequestError as e:
                     if attempt == max_retries - 1:
                         raise ValidationError(f"Connection error during image download: {str(e)}")
                     logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
