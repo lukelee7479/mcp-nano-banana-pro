@@ -26,6 +26,13 @@ DEFAULT_RESOLUTION = "1K"
 
 GENAI_CLIENT = None
 ENV_VARS = None
+HTTPX_CLIENT = None
+
+def get_httpx_client():
+    global HTTPX_CLIENT
+    if HTTPX_CLIENT is None:
+        HTTPX_CLIENT = httpx.AsyncClient(timeout=httpx.Timeout(60.0))
+    return HTTPX_CLIENT
 
 def get_env_vars() -> Dict[str, str]:
     global ENV_VARS
@@ -287,10 +294,12 @@ Requirements:
             if not image_data_base64:
                 raise ImageGenerationError("No image data found in response")
 
+            '''
             try:
                 base64.b64decode(image_data_base64, validate=True)
             except Exception as e:
                 raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
+            '''
 
         
         except asyncio.TimeoutError:
@@ -331,22 +340,22 @@ Requirements:
             }
 
             max_retries = 3
-            async with httpx.AsyncClient() as client:
-                for attempt in range(max_retries):
-                    try:
-                        resp = await client.post(upload_url, data=payload, timeout=60.0)
-                        resp.raise_for_status()
-                        break
-                    except httpx.TimeoutException:
-                        if attempt == max_retries - 1:
-                            raise ImageUploadError("Upload timed out after multiple attempts")
-                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                        await asyncio.sleep(2 ** attempt)
-                    except httpx.RequestError as e:
-                        if attempt == max_retries - 1:
-                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                        await asyncio.sleep(2 ** attempt)
+            http_client = get_httpx_client()
+            for attempt in range(max_retries):
+                try:
+                    resp = await http_client.post(upload_url, data=payload, timeout=60.0)
+                    resp.raise_for_status()
+                    break
+                except httpx.TimeoutException:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError("Upload timed out after multiple attempts")
+                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                    await asyncio.sleep(2 ** attempt)
+                except httpx.RequestError as e:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                    await asyncio.sleep(2 ** attempt)
 
             resp_json = resp.json()
 
@@ -449,31 +458,31 @@ async def edit_image(
             max_retries = 3
             image_data = None
 
-            async with httpx.AsyncClient() as client:
-                for attempt in range(max_retries):
-                    try:
-                        # await를 사용하여 비동기적으로 GET 요청 전송
-                        response = await client.get(image_url, timeout=30.0)
-                        response.raise_for_status()
+            http_client = get_httpx_client()
+            for attempt in range(max_retries):
+                try:
+                    # await를 사용하여 비동기적으로 GET 요청 전송
+                    response = await http_client.get(image_url, timeout=30.0)
+                    response.raise_for_status()
 
-                        content_type = response.headers.get('content-type', '').lower()
-                        if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
-                            raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
+                    content_type = response.headers.get('content-type', '').lower()
+                    if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
+                        raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
 
-                        image_data = response.content
-                        break
+                    image_data = response.content
+                    break
 
-                    except httpx.TimeoutException:
-                        if attempt == max_retries - 1:
-                            raise ValidationError("Image download timed out after multiple attempts")
-                        logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
-                        await asyncio.sleep(2 ** attempt)
+                except httpx.TimeoutException:
+                    if attempt == max_retries - 1:
+                        raise ValidationError("Image download timed out after multiple attempts")
+                    logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
+                    await asyncio.sleep(2 ** attempt)
 
-                    except httpx.RequestError as e:
-                        if attempt == max_retries - 1:
-                            raise ValidationError(f"Connection error during image download: {str(e)}")
-                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                        await asyncio.sleep(2 ** attempt)
+                  except httpx.RequestError as e:
+                    if attempt == max_retries - 1:
+                        raise ValidationError(f"Connection error during image download: {str(e)}")
+                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                    await asyncio.sleep(2 ** attempt)
 
             if not image_data:
                 raise ValidationError("No image data downloaded")
@@ -564,10 +573,12 @@ Edit the provided image according to this instruction: {prompt}
             if not image_data_base64:
                 raise ImageGenerationError("No image data found in response")
 
+            '''
             try:
                 base64.b64decode(image_data_base64, validate=True)
             except Exception as e:
                 raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
+            '''
 
         except asyncio.TimeoutError:
             logger.error("Image editing timed out")
@@ -597,23 +608,22 @@ Edit the provided image according to this instruction: {prompt}
             }
 
             max_retries = 3
-            async with httpx.AsyncClient() as client:
-                for attempt in range(max_retries):
-                    try:
-                        # await를 사용하여 비동기적으로 POST 요청 전송
-                        resp = await client.post(upload_url, data=payload, timeout=60.0)
-                        resp.raise_for_status()
-                        break
-                    except httpx.TimeoutException:
-                        if attempt == max_retries - 1:
-                            raise ImageUploadError("Upload timed out after multiple attempts")
-                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                        await asyncio.sleep(2 ** attempt)
-                    except httpx.RequestError as e:
-                        if attempt == max_retries - 1:
-                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                        await asyncio.sleep(2 ** attempt)
+            http_client = get_httpx_client()
+            for attempt in range(max_retries):
+                try:
+                    resp = await http_client.post(upload_url, data=payload, timeout=60.0)
+                    resp.raise_for_status()
+                    break
+                except httpx.TimeoutException:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError("Upload timed out after multiple attempts")
+                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                    await asyncio.sleep(2 ** attempt)
+                except httpx.RequestError as e:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                    await asyncio.sleep(2 ** attempt)
 
             resp_json = resp.json()
 
