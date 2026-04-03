@@ -208,8 +208,6 @@ async def generate_image(
         # Build enhanced prompt
 
         enhanced_prompt = f"""
-{prompt}
-
 Requirements:
 - Prioritize crisp, legible text rendering.
 - Avoid broken, warped, melted, duplicated, or nonsensical letters.
@@ -217,7 +215,13 @@ Requirements:
 - Preserve correct spacing, alignment, and character shapes.
 - Favor clean composition and high visual fidelity.
 - Do not misspell or distort the letters
+
+{prompt}
+
 """.strip()
+
+        if len(enhanced_prompt) > 950:
+            enhanced_prompt = enhanced_prompt[:950]
 
         # Image generation with specific error handling
         try:
@@ -483,8 +487,6 @@ async def edit_image(
         # Build enhanced prompt
 
         enhanced_prompt = f"""
-Edit the provided image according to this instruction: {prompt}
-
 Requirements:
 - Preserve the main subject identity and the important visual structure of the original image unless the prompt explicitly asks to change them.
 - Prioritize crisp, legible text rendering.
@@ -493,7 +495,13 @@ Requirements:
 - Preserve correct spacing, alignment, and character shapes.
 - Maintain high visual fidelity and coherent composition.
 - Do not misspell or distort the letters
+
+Edit the provided image according to this instruction: {prompt}
+
 """.strip()
+
+        if len(enhanced_prompt) > 950:
+            enhanced_prompt = enhanced_prompt[:950]
 
         # Image editing with specific error handling
         try:
