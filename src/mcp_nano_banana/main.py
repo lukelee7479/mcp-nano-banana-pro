@@ -20,7 +20,7 @@ image_tasks = {}
 edit_image_tasks = {}
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL = "HIGH"
+DEFAULT_THINKING_LEVEL = "MEDIUM"
 DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION = "0.5K"
 DEFAULT_ASPECT_RATIO = "16:9"
@@ -491,7 +491,7 @@ async def edit_image(
             if not image_data:
                 raise ValidationError("No image data downloaded")
 
-            image = Image.open(BytesIO(image_data))
+            image = await asyncio.to_thread(Image.open, BytesIO(image_data))
 
         except Exception as e:
             logger.exception(f"Unexpected error during image download/open: {e}")
