@@ -20,9 +20,9 @@ image_tasks = {}
 edit_image_tasks = {}
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL = "LOW"
+DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = False
-DEFAULT_RESOLUTION = "1K"
+DEFAULT_RESOLUTION = "0.5K"
 
 GENAI_CLIENT = None
 ENV_VARS = None
