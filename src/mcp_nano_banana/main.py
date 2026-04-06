@@ -181,8 +181,8 @@ async def generate_image(
     prompt: str,
     thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
-    resolution : ResolutionType = DEFAULT_RESOLUTION,
-    aspect_ratio : AspectRatioType = DEFAULT_ASPECT_RATIO
+    resolution: ResolutionType = DEFAULT_RESOLUTION,
+    aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
@@ -430,8 +430,6 @@ async def edit_image(
     prompt: str,
     thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
-    resolution: ResolutionType = DEFAULT_RESOLUTION,
-    aspect_ratio : AspectRatioType = DEFAULT_ASPECT_RATIO,
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
@@ -498,12 +496,10 @@ async def edit_image(
             if not image_data:
                 raise ValidationError("No image data downloaded")
 
-            def load_image_sync(data: bytes):
-                img = Image.open(BytesIO(data))
-                img.load()
-                return img
-
-            image = await asyncio.to_thread(load_image_sync, image_data)
+            image = types.Part.from_bytes(
+                data=image_data, 
+                mime_type=content_type
+            )
 
         except Exception as e:
             logger.exception(f"Unexpected error during image download/open: {e}")
@@ -539,8 +535,7 @@ Edit the provided image according to this instruction: {prompt}
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
-                    image_size=resolution,
-                    aspect_ratio=aspect_ratio,
+
                 ),
             }
 
