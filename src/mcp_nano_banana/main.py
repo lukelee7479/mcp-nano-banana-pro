@@ -246,7 +246,7 @@ Requirements:
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
                 "thinking_config": types.ThinkingConfig(
-                    thinking_level=thinking_level.capitalize(),
+                    thinking_level=thinking_level.upper(),
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
@@ -531,7 +531,7 @@ Edit the provided image according to this instruction: {prompt}
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
                 "thinking_config": types.ThinkingConfig(
-                    thinking_level=thinking_level.capitalize(),
+                    thinking_level=thinking_level.upper(),
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
