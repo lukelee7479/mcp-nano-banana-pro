@@ -491,7 +491,12 @@ async def edit_image(
             if not image_data:
                 raise ValidationError("No image data downloaded")
 
-            image = await asyncio.to_thread(Image.open, BytesIO(image_data))
+            def load_image_sync(data: bytes):
+                img = Image.open(BytesIO(data))
+                img.load()
+                return img
+
+            image = await asyncio.to_thread(load_image_sync, image_data)
 
         except Exception as e:
             logger.exception(f"Unexpected error during image download/open: {e}")
