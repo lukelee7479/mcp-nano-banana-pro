@@ -80,8 +80,8 @@ def validate_prompt(prompt: str) -> None:
     if len(prompt.strip()) == 0:
         raise ValidationError("Prompt cannot be empty or only whitespace")
     
-    if len(prompt) > 1000:
-        raise ValidationError("Prompt is too long (maximum 1000 characters)")
+    #if len(prompt) > 1000:
+    #    raise ValidationError("Prompt is too long (maximum 1000 characters)")
     
     # Check for potentially problematic content
     if any(char in prompt for char in ['<', '>', '&', '"', "'"]):
