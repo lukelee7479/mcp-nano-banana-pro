@@ -5,6 +5,7 @@ import base64
 import uuid
 import json
 import httpx
+from typing import Literal
 
 from io import BytesIO
 from urllib.parse import urlparse
