@@ -23,6 +23,7 @@ DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL = "HIGH"
 DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION = "0.5K"
+DEFAULT_ASPECT_RATIO = "16:9"
 
 GENAI_CLIENT = None
 ENV_VARS = None
@@ -175,6 +176,7 @@ async def generate_image(
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
     resolution : str = DEFAULT_RESOLUTION,
+    aspect_ratio : str = DEFAULT_ASPECT_RATIO
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
@@ -243,6 +245,7 @@ Requirements:
                 ),
                 "image_config": types.ImageConfig(
                     image_size=resolution,
+                    aspect_ratio=aspect_ratio,
                 ),
             }
 
@@ -421,6 +424,7 @@ async def edit_image(
     thinking_level: str = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
     resolution: str = DEFAULT_RESOLUTION,
+    aspect_ratio : str = DEFAULT_ASPECT_RATIO,
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
@@ -524,6 +528,7 @@ Edit the provided image according to this instruction: {prompt}
                 ),
                 "image_config": types.ImageConfig(
                     image_size=resolution,
+                    aspect_ratio=aspect_ratio,
                 ),
             }
 
