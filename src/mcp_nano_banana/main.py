@@ -7,11 +7,11 @@ import json
 import httpx
 from typing import Literal
 
-from io import BytesIO
+#from io import BytesIO
 from urllib.parse import urlparse
 from typing import Dict, Any, Optional
 
-from PIL import Image
+#from PIL import Image
 from mcp.server.fastmcp import FastMCP
 from google import genai
 from google.genai import types
@@ -496,9 +496,10 @@ async def edit_image(
             if not image_data:
                 raise ValidationError("No image data downloaded")
 
+            safe_mime_type = content_type if "image/" in content_type else "image/jpeg"
             image = types.Part.from_bytes(
                 data=image_data, 
-                mime_type=content_type
+                mime_type=safe_mime_type
             )
 
         except Exception as e:
