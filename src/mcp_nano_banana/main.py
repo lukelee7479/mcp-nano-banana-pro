@@ -166,9 +166,10 @@ logger.info(f"MCP server '{mcp.name}' created.")
 @mcp.tool(
     name="generate_image",
     description=(
-        "Generates an image based on a text prompt using the Gemini API and returns the image as a url."
-        "IMPORTANT: You MUST call this tool EXACTLY ONCE per user request. "
-        "Do NOT call this tool multiple times in parallel or sequentially for a single image generation task."
+        "Call this tool IMMEDIATELY when the user requests to create, draw, or generate a new image. "
+        "Input: 'prompt' (detailed visual description, preferably in English) and 'aspect_ratio' "
+        "Output: Returns the generated image URL. "
+        "CONSTRAINT: You MUST call this tool EXACTLY ONCE per user request. Do NOT call in parallel."
     ),
 )
 async def generate_image(
@@ -413,9 +414,10 @@ Requirements:
 @mcp.tool(
     name="edit_image",
     description=(
-        "Edits an existing image based on a text prompt using the Gemini API. Takes an image URL and a prompt, then returns the edited image as a URL."
-        "IMPORTANT: You MUST call this tool EXACTLY ONCE per user request. "
-        "Do NOT call this tool multiple times in parallel or sequentially for a single image generation task."
+        "Call this tool IMMEDIATELY when the user wants to modify, edit, or transform an EXISTING image. "
+        "Input: 'image_url' (source image link) and 'prompt' (specific editing instructions, preferably in English). "
+        "Output: Returns the edited image URL. "
+        "CONSTRAINT: You MUST call this tool EXACTLY ONCE per user request. Do NOT call in parallel."
     ),
 )
 async def edit_image(
