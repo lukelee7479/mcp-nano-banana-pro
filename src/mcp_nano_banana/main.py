@@ -428,7 +428,7 @@ Requirements:
 async def edit_image(
     image_url: str,
     prompt: str,
-    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
+    thinking_level: ThinkingLevelType = "MINIMAL",
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
     """
