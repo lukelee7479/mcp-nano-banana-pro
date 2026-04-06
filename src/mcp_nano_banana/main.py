@@ -167,7 +167,7 @@ logger.info(f"MCP server '{mcp.name}' created.")
     name="generate_image",
     description=(
         "Call this tool IMMEDIATELY when the user requests to create, draw, or generate a new image. "
-        "Input: 'prompt' (detailed visual description, preferably in English) and 'aspect_ratio' "
+        "Input: 'prompt' "
         "Output: Returns the generated image URL. "
         "CONSTRAINT: You MUST call this tool EXACTLY ONCE per user request. Do NOT call in parallel."
     ),
