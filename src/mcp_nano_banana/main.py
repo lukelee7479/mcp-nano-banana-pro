@@ -383,7 +383,9 @@ Requirements:
             # url_deliver
             if not task_future.done():
                 task_future.set_result(uploaded_url)
-                
+
+            image_tasks.pop(cache_key, None)
+          
             return create_success_response({"url": uploaded_url})
 
         # error_notice
@@ -653,6 +655,8 @@ Edit the provided image according to this instruction: {prompt}
             logger.info(f"Edited image uploaded successfully to {uploaded_url}")
             if not task_future.done():
                 task_future.set_result(uploaded_url)
+
+            edit_image_tasks.pop(cache_key, None)
             return create_success_response({"url": uploaded_url})
 
         except httpx.HTTPStatusError as e:
