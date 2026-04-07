@@ -179,7 +179,7 @@ logger.info(f"MCP server '{mcp.name}' created.")
 )
 async def generate_image(
     prompt: str,
-    #thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
+    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
     #resolution: ResolutionType = DEFAULT_RESOLUTION,
     #aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
@@ -381,7 +381,7 @@ Requirements:
 async def edit_image(
     image_url: str,
     prompt: str,
-    #thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
+    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
     """
