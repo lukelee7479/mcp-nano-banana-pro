@@ -22,12 +22,12 @@ edit_image_tasks = {}
 
 AspectRatioType = Literal["1:1", "3:4", "4:3", "9:16", "16:9"]
 ThinkingLevelType = Literal["MINIMAL", "HIGH"]
-ResolutionType = Literal["0.5K", "1K", "2K", "4K"]
+ResolutionType = Literal["low", "medium", "high", "ultra"]
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL: ThinkingLevelType = "HIGH"
 DEFAULT_ENABLE_GROUNDING = False
-DEFAULT_RESOLUTION: ResolutionType = "0.5K"
+DEFAULT_RESOLUTION: ResolutionType = "low"
 DEFAULT_ASPECT_RATIO: AspectRatioType = "16:9"
 
 GENAI_CLIENT = None
