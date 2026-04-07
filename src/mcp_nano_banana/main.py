@@ -485,7 +485,7 @@ Edit the provided image according to this instruction: {prompt}
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
                 "thinking_config": types.ThinkingConfig(
-                    thinking_level='MINIMAL',
+                    thinking_level='Minimal',
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
