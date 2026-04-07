@@ -25,7 +25,7 @@ ThinkingLevelType = Literal["MINIMAL", "HIGH"]
 ResolutionType = Literal["0.5K", "1K", "2K", "4K"]
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL: ThinkingLevelType = "HIGH"
+DEFAULT_THINKING_LEVEL: ThinkingLevelType = "MINIMAL"
 DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION: ResolutionType = "0.5K"
 DEFAULT_ASPECT_RATIO: AspectRatioType = "16:9"
@@ -239,8 +239,8 @@ Requirements:
                 include_thoughts=False,
             ),
             "image_config": types.ImageConfig(
-                image_size=resolution,
-                aspect_ratio=aspect_ratio,
+                image_size='512',
+                #aspect_ratio=aspect_ratio,
             ),
         }
 
