@@ -180,7 +180,7 @@ logger.info(f"MCP server '{mcp.name}' created.")
 async def generate_image(
     prompt: str,
     thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
-    #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
     #resolution: ResolutionType = DEFAULT_RESOLUTION,
     #aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
 ) -> str:
@@ -382,7 +382,7 @@ async def edit_image(
     image_url: str,
     prompt: str,
     thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
-    #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
