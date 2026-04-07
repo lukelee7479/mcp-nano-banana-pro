@@ -179,10 +179,10 @@ logger.info(f"MCP server '{mcp.name}' created.")
 )
 async def generate_image(
     prompt: str,
-    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
-    enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
-    resolution: ResolutionType = DEFAULT_RESOLUTION,
-    aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
+    #thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
+    #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    #resolution: ResolutionType = DEFAULT_RESOLUTION,
+    #aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
@@ -235,14 +235,16 @@ Requirements:
         config_kwargs = {
             "response_modalities": ["TEXT", "IMAGE"],
             "thinking_config": types.ThinkingConfig(
-                thinking_level=thinking_level,
+                thinking_level='HIGH',
                 include_thoughts=False,
             ),
             "image_config": types.ImageConfig(
-                image_size='512',
-                #aspect_ratio=aspect_ratio,
+                image_size='1K',
+                aspect_ratio='16:9',
             ),
         }
+
+        enable_grounding = False
 
         if enable_grounding:
             config_kwargs["tools"] = [{"google_search": {}}]
@@ -379,8 +381,8 @@ Requirements:
 async def edit_image(
     image_url: str,
     prompt: str,
-    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
-    enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    #thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
+    #enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
@@ -483,13 +485,16 @@ Edit the provided image according to this instruction: {prompt}
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
                 "thinking_config": types.ThinkingConfig(
-                    thinking_level=thinking_level.upper(),
+                    thinking_level='MINIMAL',
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
-                    
+                    image_size='1K',
+                    aspect_ratio='16:9'
                 ),
             }
+
+            enable_grounding=False
 
             if enable_grounding:
                 config_kwargs["tools"] = [{"google_search": {}}]
