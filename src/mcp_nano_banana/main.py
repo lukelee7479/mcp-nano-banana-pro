@@ -225,7 +225,7 @@ Requirements:
         config_kwargs = {
             "response_modalities": ["TEXT", "IMAGE"],
             "thinking_config": types.ThinkingConfig(
-                thinking_level='High',
+                thinking_level='Minimal',
                 include_thoughts=False,
             ),
             "image_config": types.ImageConfig(
