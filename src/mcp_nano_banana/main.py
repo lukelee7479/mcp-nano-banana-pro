@@ -193,11 +193,9 @@ async def generate_image(
     if cache_key in image_tasks:
         logger.info(f"Duplicate request detected. Waiting for the existing task for prompt: {prompt}")
         try:
-            # 먼저 시작된 작업이 끝날 때까지 기다렸다가(await) 완성된 URL을 받습니다.
             uploaded_url = await image_tasks[cache_key]
             return create_success_response({"url": uploaded_url})
         except Exception:
-            # 만약 먼저 시작된 작업이 에러가 났다면, 무시하고 아래로 내려가서 새로 시도합니다.
             pass
 
     # 2. first request
@@ -205,22 +203,18 @@ async def generate_image(
     task_future = loop.create_future()
     image_tasks[cache_key] = task_future
 
+    error_type = None
+    error_msg = None
+    exception_to_set = None
 
-    
     try:
-        # Input validation
         validate_prompt(prompt)
-
-        # Environment validation
         env_vars = get_env_vars()
 
         logger.info(
             f"Tool 'generate_image' called with prompt: '{prompt}', "
-            f"thinking_level='{thinking_level}', "
-            f"enable_grounding={enable_grounding}"
+            f"thinking_level='{thinking_level}', enable_grounding={enable_grounding}"
         )
-
-        # Build enhanced prompt
 
         enhanced_prompt = f"""
 Requirements:
@@ -232,192 +226,147 @@ Requirements:
 - Do not misspell or distort the letters
 
 {prompt}
-
 """.strip()
 
         if len(enhanced_prompt) > 950:
             enhanced_prompt = enhanced_prompt[:950]
 
-        # Image generation with specific error handling
-        try:
-           
-            client = get_genai_client()
+        client = get_genai_client()
+        config_kwargs = {
+            "response_modalities": ["TEXT", "IMAGE"],
+            "thinking_config": types.ThinkingConfig(
+                thinking_level=thinking_level,
+                include_thoughts=False,
+            ),
+            "image_config": types.ImageConfig(
+                image_size=resolution,
+                aspect_ratio=aspect_ratio,
+                number_of_images=1,
+            ),
+        }
 
-            config_kwargs = {
-                "response_modalities": ["TEXT", "IMAGE"],
-                "thinking_config": types.ThinkingConfig(
-                    thinking_level=thinking_level,
-                    include_thoughts=False,
-                ),
-                "image_config": types.ImageConfig(
-                    image_size=resolution,
-                    aspect_ratio=aspect_ratio,
-                    number_of_images=1,
-                ),
-            }
+        if enable_grounding:
+            config_kwargs["tools"] = [{"google_search": {}}]
 
-            # Preserve enable_grounding semantics in the SDK config as well.
-            # Official docs show google_search as a tool option in GenerateContentConfig.
-            if enable_grounding:
-                config_kwargs["tools"] = [{"google_search": {}}]
+        response = await asyncio.wait_for(
+            client.aio.models.generate_content(
+                model=DEFAULT_MODEL,
+                contents=enhanced_prompt,
+                config=types.GenerateContentConfig(**config_kwargs),
+            ),
+            timeout=120,
+        )
 
-            response = await asyncio.wait_for(
-                client.aio.models.generate_content(
-                    model=DEFAULT_MODEL,
-                    contents=enhanced_prompt,
-                    config=types.GenerateContentConfig(**config_kwargs),
-                ),
-                timeout=120,
-            )
+        if not response:
+            raise ImageGenerationError("Gemini API returned empty response")
 
-            if not response:
-                raise ImageGenerationError("Gemini API returned empty response")
+        parts = getattr(response, "parts", None)
+        if not parts:
+            raise ImageGenerationError("No parts returned from Gemini API")
 
-            parts = getattr(response, "parts", None)
-            if not parts:
-                raise ImageGenerationError("No parts returned from Gemini API")
+        image_data_base64 = None
+        for part in parts:
+            if getattr(part, "thought", False):
+                continue
+            inline_data = getattr(part, "inline_data", None)
+            if not inline_data:
+                continue
+            raw_data = getattr(inline_data, "data", None)
+            if not raw_data:
+                continue
 
-            image_data_base64 = None
+            if isinstance(raw_data, bytes):
+                image_data_base64 = base64.b64encode(raw_data).decode("utf-8")
+                break
+            elif isinstance(raw_data, str):
+                if raw_data.startswith("data:"):
+                    image_data_base64 = raw_data.split(",", 1)[1]
+                else:
+                    image_data_base64 = raw_data.strip()
+                break
 
-            for part in parts:
-                if getattr(part, "thought", False):
-                    continue
+        if not image_data_base64:
+            raise ImageGenerationError("No image data found in response")
 
-                inline_data = getattr(part, "inline_data", None)
-                if not inline_data:
-                    continue
+        upload_url = "https://api.imgbb.com/1/upload"
+        image_size = (len(image_data_base64) * 3) // 4
+        if image_size > 32 * 1024 * 1024:
+            raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
 
-                raw_data = getattr(inline_data, "data", None)
-                if not raw_data:
-                    continue
+        payload = {
+            "key": env_vars['IMGBB_API_KEY'],
+            "image": image_data_base64,
+            "name": f"{uuid.uuid4()}"
+        }
 
-                if isinstance(raw_data, bytes):
-                    image_data_base64 = base64.b64encode(raw_data).decode("utf-8")
-                    break
-                elif isinstance(raw_data, str):
-                    if raw_data.startswith("data:"):
-                        image_data_base64 = raw_data.split(",", 1)[1]
-                    else:
-                        image_data_base64 = raw_data.strip()
-                    break
-
-            if not image_data_base64:
-                raise ImageGenerationError("No image data found in response")
-
-            '''
-            try:
-                base64.b64decode(image_data_base64, validate=True)
-            except Exception as e:
-                raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
-            '''
-
+        max_retries = 3
+        http_client = get_httpx_client()
+        resp = None
         
-        except asyncio.TimeoutError:
-            logger.error("Image generation timed out")
-            return create_error_response(
-                "timeout_error",
-                "Image generation timed out after 2 minutes",
-                {"timeout_seconds": 120}
-            )
-        except genai_errors.APIError as e:
-            logger.exception(f"Gemini API error: {e}")
-            return create_error_response(
-                "gemini_api_error",
-                f"Gemini API error: {str(e)}",
-            )
-        except ImageGenerationError as e:
-            logger.error(f"Image generation error: {e}")
-            return create_error_response("image_generation_error", str(e))
-        except Exception as e:
-            logger.exception(f"Unexpected error during image generation: {e}")
-            return create_error_response(
-                "unexpected_error",
-                f"Unexpected error during image generation: {str(e)}"
-            )
+        for attempt in range(max_retries):
+            try:
+                resp = await http_client.post(upload_url, data=payload, timeout=60.0)
+                resp.raise_for_status()
+                break
+            except httpx.TimeoutException:
+                if attempt == max_retries - 1:
+                    raise ImageUploadError("Upload timed out after multiple attempts")
+                logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                await asyncio.sleep(2 ** attempt)
+            except httpx.RequestError as e:
+                if attempt == max_retries - 1:
+                    raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                await asyncio.sleep(2 ** attempt)
 
-  # Image upload with specific error handling
-        try:
-            upload_url = "https://api.imgbb.com/1/upload"
+        resp_json = resp.json()
 
-            image_size = (len(image_data_base64) * 3) // 4
-            if image_size > 32 * 1024 * 1024:
-                raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
+        if "data" not in resp_json:
+            error_msg_upload = resp_json.get("error", {}).get("message", "Unknown error")
+            raise ImageUploadError(f"ImgBB upload failed: {error_msg_upload}")
 
-            payload = {
-                "key": env_vars['IMGBB_API_KEY'],
-                "image": image_data_base64,
-                "name": f"{uuid.uuid4()}"
-            }
+        if "url" not in resp_json["data"]:
+            raise ImageUploadError("ImgBB response missing URL field")
 
-            max_retries = 3
-            http_client = get_httpx_client()
-            for attempt in range(max_retries):
-                try:
-                    resp = await http_client.post(upload_url, data=payload, timeout=60.0)
-                    resp.raise_for_status()
-                    break
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+        uploaded_url = resp_json["data"]["url"]
+        validate_image_url(uploaded_url)
+        logger.info(f"Image uploaded successfully to {uploaded_url}")
 
-            resp_json = resp.json()
-
-            if "data" not in resp_json:
-                error_msg = resp_json.get("error", {}).get("message", "Unknown error")
-                raise ImageUploadError(f"ImgBB upload failed: {error_msg}")
-
-            if "url" not in resp_json["data"]:
-                raise ImageUploadError("ImgBB response missing URL field")
-
-            uploaded_url = resp_json["data"]["url"]
-            validate_image_url(uploaded_url)
-
-            logger.info(f"Image uploaded successfully to {uploaded_url}")
-            
-            # url_deliver
-            if not task_future.done():
-                task_future.set_result(uploaded_url)
-
-            image_tasks.pop(cache_key, None)
-          
-            return create_success_response({"url": uploaded_url})
-
-        # error_notice
-        except httpx.HTTPStatusError as e:
-            logger.error(f"ImgBB HTTP error: {e}")
-            raise APIError(f"HTTP error {e.response.status_code}")
-        except ImageUploadError as e:
-            logger.error(f"Image upload error: {e}")
-            raise e
-        except Exception as e:
-            logger.exception(f"Unexpected error during image upload: {e}")
-            raise e
+        if not task_future.done():
+            task_future.set_result(uploaded_url)
+        
+        return create_success_response({"url": uploaded_url})
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
-        if not task_future.done():
-            task_future.set_exception(e)
-        image_tasks.pop(cache_key, None)
-        return create_error_response("validation_error", str(e))
-        
+        error_type, error_msg, exception_to_set = "validation_error", str(e), e
+    except asyncio.TimeoutError as e:
+        logger.error("Image generation timed out")
+        error_type, error_msg, exception_to_set = "timeout_error", "Image generation timed out after 2 minutes", e
+    except genai_errors.APIError as e:
+        logger.exception(f"Gemini API error: {e}")
+        error_type, error_msg, exception_to_set = "gemini_api_error", f"Gemini API error: {str(e)}", e
+    except ImageGenerationError as e:
+        logger.error(f"Image generation error: {e}")
+        error_type, error_msg, exception_to_set = "image_generation_error", str(e), e
+    except httpx.HTTPStatusError as e:
+        logger.error(f"ImgBB HTTP error: {e}")
+        error_type, error_msg, exception_to_set = "http_error", f"HTTP error {e.response.status_code}", e
+    except ImageUploadError as e:
+        logger.error(f"Image upload error: {e}")
+        error_type, error_msg, exception_to_set = "image_upload_error", str(e), e
     except Exception as e:
-        logger.exception(f"Unexpected error in generating or uploading_image: {e}")
-        if not task_future.done():
-            task_future.set_exception(e)
-        
+        logger.exception(f"Unexpected error: {e}")
+        error_type, error_msg, exception_to_set = "unexpected_error", f"Unexpected error: {str(e)}", e
+
+    finally:
         image_tasks.pop(cache_key, None)
-        
-        return create_error_response(
-            "unexpected_error",
-            f"Unexpected error: {str(e)}"
-        )
+
+    if exception_to_set and not task_future.done():
+        task_future.set_exception(exception_to_set)
+
+    return create_error_response(error_type, error_msg)
+
 
 @mcp.tool(
     name="edit_image",
