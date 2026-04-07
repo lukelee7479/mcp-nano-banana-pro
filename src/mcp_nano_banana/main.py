@@ -27,7 +27,7 @@ ResolutionType = Literal["low", "medium", "high", "ultra"]
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
 DEFAULT_THINKING_LEVEL: ThinkingLevelType = "HIGH"
 DEFAULT_ENABLE_GROUNDING = False
-DEFAULT_RESOLUTION: ResolutionType = "low"
+DEFAULT_RESOLUTION: ResolutionType = "medium"
 DEFAULT_ASPECT_RATIO: AspectRatioType = "16:9"
 
 GENAI_CLIENT = None
