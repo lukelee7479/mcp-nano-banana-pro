@@ -20,15 +20,8 @@ from google.genai import errors as genai_errors
 image_tasks = {}
 edit_image_tasks = {}
 
-AspectRatioType = Literal["1:1", "3:4", "4:3", "9:16", "16:9"]
-ThinkingLevelType = Literal["MINIMAL", "HIGH"]
-ResolutionType = Literal["0.5K", "1K", "2K", "4K"]
-
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL: ThinkingLevelType = "MINIMAL"
 DEFAULT_ENABLE_GROUNDING = False
-DEFAULT_RESOLUTION: ResolutionType = "0.5K"
-DEFAULT_ASPECT_RATIO: AspectRatioType = "16:9"
 
 GENAI_CLIENT = None
 ENV_VARS = None
@@ -179,10 +172,7 @@ logger.info(f"MCP server '{mcp.name}' created.")
 )
 async def generate_image(
     prompt: str,
-    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
-    #resolution: ResolutionType = DEFAULT_RESOLUTION,
-    #aspect_ratio: AspectRatioType = DEFAULT_ASPECT_RATIO
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
@@ -213,7 +203,7 @@ async def generate_image(
 
         logger.info(
             f"Tool 'generate_image' called with prompt: '{prompt}', "
-            f"thinking_level='{thinking_level}', enable_grounding={enable_grounding}"
+            f"enable_grounding={enable_grounding}"
         )
 
         enhanced_prompt = f"""
@@ -381,7 +371,6 @@ Requirements:
 async def edit_image(
     image_url: str,
     prompt: str,
-    thinking_level: ThinkingLevelType = DEFAULT_THINKING_LEVEL,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
 ) -> str:
     """
@@ -411,7 +400,6 @@ async def edit_image(
 
         logger.info(
             f"Tool 'edit_image' called with image_url: '{image_url}', prompt: '{prompt}', "
-            f"thinking_level='{thinking_level}', "
             f"enable_grounding={enable_grounding}"
         )
 
