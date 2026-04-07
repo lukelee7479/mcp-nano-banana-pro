@@ -229,8 +229,7 @@ Requirements:
                 include_thoughts=False,
             ),
             "image_config": types.ImageConfig(
-                #image_size='1K',
-                aspect_ratio='16:9',
+
             ),
         }
 
