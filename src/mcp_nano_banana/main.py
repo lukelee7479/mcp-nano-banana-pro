@@ -21,11 +21,11 @@ image_tasks = {}
 edit_image_tasks = {}
 
 AspectRatioType = Literal["1:1", "3:4", "4:3", "9:16", "16:9"]
-ThinkingLevelType = Literal["MINIMAL", "HIGH"]
+ThinkingLevelType = Literal["minimal", "high"]
 ResolutionType = Literal["0.5K", "1K", "2K", "4K"]
 
 DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
-DEFAULT_THINKING_LEVEL: ThinkingLevelType = "HIGH"
+DEFAULT_THINKING_LEVEL: ThinkingLevelType = "high"
 DEFAULT_ENABLE_GROUNDING = False
 DEFAULT_RESOLUTION: ResolutionType = "0.5K"
 DEFAULT_ASPECT_RATIO: AspectRatioType = "16:9"
@@ -246,7 +246,7 @@ Requirements:
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
                 "thinking_config": types.ThinkingConfig(
-                    thinking_level=thinking_level.upper(),
+                    thinking_level=thinking_level,
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
