@@ -363,7 +363,7 @@ Requirements:
     name="edit_image",
     description=(
         "Call this tool IMMEDIATELY when the user wants to modify, edit, or transform an EXISTING image. "
-        "Input: 'image_url' (source image link) and 'prompt' (specific editing instructions, preferably in English). "
+        "Input: 'image_url' (source image link) and 'prompt'. "
         "Output: Returns the edited image URL. "
         "CONSTRAINT: You MUST call this tool EXACTLY ONCE per user request. Do NOT call in parallel."
     ),
