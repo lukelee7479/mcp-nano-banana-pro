@@ -252,6 +252,7 @@ Requirements:
                 "image_config": types.ImageConfig(
                     image_size=resolution,
                     aspect_ratio=aspect_ratio,
+                    number_of_images=1,
                 ),
             }
 
@@ -538,7 +539,7 @@ Edit the provided image according to this instruction: {prompt}
                     include_thoughts=False,
                 ),
                 "image_config": types.ImageConfig(
-
+                    number_of_images=1,
                 ),
             }
 
