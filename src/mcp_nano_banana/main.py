@@ -245,7 +245,7 @@ Requirements:
                 contents=enhanced_prompt,
                 config=types.GenerateContentConfig(**config_kwargs),
             ),
-            timeout=120,
+            timeout=150,
         )
 
         if not response:
