@@ -250,10 +250,10 @@ Requirements:
                     timeout=120,
                 )
                 break 
-            except (asyncio.TimeoutError, genai_errors.APIError) as e:
+            except Exception as e:
                 logger.warning(f"Gemini API attempt {attempt + 1} failed: {e}")
                 if attempt == max_gemini_retries - 1:
-                    raise 
+                    raise e
                 await asyncio.sleep(2) 
 
 
@@ -512,7 +512,7 @@ Edit the provided image according to this instruction: {prompt}
                         timeout=120,
                     )
                     break
-                except (asyncio.TimeoutError, genai_errors.APIError) as e:
+                except Exception as e:
                     logger.warning(f"[edit_image] Gemini API attempt {attempt + 1} failed: {e}")
                     if attempt == max_gemini_retries - 1:
                         raise e
