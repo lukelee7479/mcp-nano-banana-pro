@@ -515,7 +515,7 @@ Edit the provided image according to this instruction: {prompt}
                 except (asyncio.TimeoutError, genai_errors.APIError) as e:
                     logger.warning(f"[edit_image] Gemini API attempt {attempt + 1} failed: {e}")
                     if attempt == max_gemini_retries - 1:
-                        rasie e
+                        raise e
                     await asyncio.sleep(2)
 
             if not response:
