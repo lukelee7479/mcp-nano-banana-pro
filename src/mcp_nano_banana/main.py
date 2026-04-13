@@ -20,7 +20,7 @@ from google.genai import errors as genai_errors
 image_tasks = {}
 edit_image_tasks = {}
 
-DEFAULT_MODEL = "gemini-3.1-flash-image-preview"
+DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image", "gemini-3-pro-image-preview" ]
 DEFAULT_ENABLE_GROUNDING = False
 
 GENAI_CLIENT = None
@@ -225,7 +225,7 @@ Requirements:
         config_kwargs = {
             "response_modalities": ["TEXT", "IMAGE"],
             "thinking_config": types.ThinkingConfig(
-                #thinking_level='High',
+                thinking_level='High',
                 include_thoughts=False,
             ),
             "image_config": types.ImageConfig(
@@ -236,17 +236,29 @@ Requirements:
 
         enable_grounding = False
 
-        if enable_grounding:
-            config_kwargs["tools"] = [{"google_search": {}}]
+        max_gemini_retries = 3
+        response = None
 
-        response = await asyncio.wait_for(
-            client.aio.models.generate_content(
-                model=DEFAULT_MODEL,
-                contents=enhanced_prompt,
-                config=types.GenerateContentConfig(**config_kwargs),
-            ),
-            timeout=150,
-        )
+        for attempt in range(max_gemini_retries):
+            try:
+                response = await asyncio.wait_for(
+                    client.aio.models.generate_content(
+                        model=DEFAULT_MODEL[attempt],
+                        contents=enhanced_prompt,
+                        config=types.GenerateContentConfig(**config_kwargs),
+                    ),
+                    timeout=120,
+                )
+                break 
+            except (asyncio.TimeoutError, genai_errors.APIError) as e:
+                logger.warning(f"Gemini API attempt {attempt + 1} failed: {e}")
+                if attempt == max_gemini_retries - 1:
+                    raise 
+                await asyncio.sleep(2) 
+
+
+
+        
 
         if not response:
             raise ImageGenerationError("Gemini API returned empty response")
@@ -486,14 +498,25 @@ Edit the provided image according to this instruction: {prompt}
             if enable_grounding:
                 config_kwargs["tools"] = [{"google_search": {}}]
 
-            response = await asyncio.wait_for(
-                client.aio.models.generate_content(
-                    model=DEFAULT_MODEL,
-                    contents=[image, enhanced_prompt],
-                    config=types.GenerateContentConfig(**config_kwargs),
-                ),
-                timeout=120,
-            )
+            max_gemini_retries = 3
+            response = None
+
+            for attempt in range(max_gemini_retries):
+                try:
+                    response = await asyncio.wait_for(
+                        client.aio.models.generate_content(
+                            model=DEFAULT_MODEL[attempt],
+                            contents=[image, enhanced_prompt],
+                            config=types.GenerateContentConfig(**config_kwargs),
+                        ),
+                        timeout=120,
+                    )
+                    break
+                except (asyncio.TimeoutError, genai_errors.APIError) as e:
+                    logger.warning(f"[edit_image] Gemini API attempt {attempt + 1} failed: {e}")
+                    if attempt == max_gemini_retries - 1:
+                        rasie e
+                    await asyncio.sleep(2)
 
             if not response:
                 raise ImageGenerationError("Gemini API returned empty response")
