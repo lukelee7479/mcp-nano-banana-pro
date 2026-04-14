@@ -405,17 +405,27 @@ async def edit_image(
     """
     cache_key = f"{prompt.strip().lower()}|{image_url.strip()}"
 
-    if cache_key in edit_image_tasks:
-        logger.info(f"Duplicate edit request detected. Waiting for task. Prompt: {prompt}")
+    lock = get_task_lock()  
+    is_new_task = False
+    task_future = None
+
+    async with lock:
+        if cache_key in edit_image_tasks:
+            logger.info(f"Duplicate edit request detected. Waiting for {prompt}")
+            task_future = edit_image_tasks[cache_key]
+        else:
+            loop = asyncio.get_running_loop()
+            task_future = loop.create_future()
+            edit_image_tasks[cache_key] = task_future
+            is_new_task = True
+
+    if not is_new_task:       
         try:
-            uploaded_url = await edit_image_tasks[cache_key]
+            uploaded_url = await task_future
             return create_success_response({"url": uploaded_url})
         except Exception:
             pass
             
-    loop = asyncio.get_running_loop()
-    task_future = loop.create_future()
-    edit_image_tasks[cache_key] = task_future
     
     try:
         # Input validation
