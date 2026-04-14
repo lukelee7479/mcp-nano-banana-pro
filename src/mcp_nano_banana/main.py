@@ -19,6 +19,13 @@ from google.genai import errors as genai_errors
 
 image_tasks = {}
 edit_image_tasks = {}
+_task_lock = None
+
+def get_task_lock():
+    global _task_lock
+    if _task_lock is None:
+        _task_lock = asyncio.Lock()
+    return _task_lock
 
 DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image", "gemini-3-pro-image-preview" ]
 DEFAULT_ENABLE_GROUNDING = False
@@ -179,19 +186,27 @@ async def generate_image(
     """
     cache_key = prompt.strip().lower()
 
+    lock = get_task_lock()
+    is_new_task = False
+    task_future = None
+
     # 1. same job running
-    if cache_key in image_tasks:
-        logger.info(f"Duplicate request detected. Waiting for the existing task for prompt: {prompt}")
+    async with lock:
+        if cache_key in image_tasks:
+            logger.info(f"Duplicate request detected. Waiting for the existing task for: {prompt}")
+            task_future = image_tasks[cache_key]
+        else:
+            loop = asyncio.get_running_loop()
+            task_future = loop.create_future()
+            image_tasks[cache_key] = task_future
+            is_new_task = True
+
+    if not is_new_task:     
         try:
-            uploaded_url = await image_tasks[cache_key]
+            uploaded_url = await task_future
             return create_success_response({"url": uploaded_url})
         except Exception:
             pass
-
-    # 2. first request
-    loop = asyncio.get_running_loop()
-    task_future = loop.create_future()
-    image_tasks[cache_key] = task_future
 
     error_type = None
     error_msg = None
