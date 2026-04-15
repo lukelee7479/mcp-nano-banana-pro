@@ -239,7 +239,7 @@ Requirements:
 
         client = get_genai_client()
         config_kwargs = {
-            "response_modalities": ["TEXT", "IMAGE"],
+            "response_modalities": ["IMAGE"],
             "image_config": types.ImageConfig(
                 #image_size='1K'
                 #aspect_ratio='16:9',
@@ -505,7 +505,7 @@ Edit the provided image according to this instruction: {prompt}
             client = get_genai_client()
 
             config_kwargs = {
-                "response_modalities": ["TEXT", "IMAGE"],
+                "response_modalities": ["IMAGE"],
                 "image_config": types.ImageConfig(
                     
                 ),
