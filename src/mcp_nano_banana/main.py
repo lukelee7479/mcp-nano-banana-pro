@@ -240,10 +240,6 @@ Requirements:
         client = get_genai_client()
         config_kwargs = {
             "response_modalities": ["TEXT", "IMAGE"],
-            "thinking_config": types.ThinkingConfig(
-                #thinking_level='High',
-                include_thoughts=False,
-            ),
             "image_config": types.ImageConfig(
                 #image_size='1K'
                 #aspect_ratio='16:9',
@@ -510,10 +506,6 @@ Edit the provided image according to this instruction: {prompt}
 
             config_kwargs = {
                 "response_modalities": ["TEXT", "IMAGE"],
-                "thinking_config": types.ThinkingConfig(
-                    #thinking_level='Minimal',
-                    include_thoughts=False,
-                ),
                 "image_config": types.ImageConfig(
                     
                 ),
