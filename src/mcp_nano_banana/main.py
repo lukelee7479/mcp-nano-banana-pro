@@ -27,7 +27,8 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image", "gemini-3-pro-image-preview" ]
+#DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image" ]
+DEFAULT_MODEL = ["gemini-2.5-flash-image"]
 DEFAULT_ENABLE_GROUNDING = False
 
 GENAI_CLIENT = None
@@ -251,7 +252,7 @@ Requirements:
 
         enable_grounding = False
 
-        max_gemini_retries = 3
+        max_gemini_retries = len(DEFAULT_MODEL)
         response = None
 
         for attempt in range(max_gemini_retries):
@@ -523,7 +524,7 @@ Edit the provided image according to this instruction: {prompt}
             if enable_grounding:
                 config_kwargs["tools"] = [{"google_search": {}}]
 
-            max_gemini_retries = 3
+            max_gemini_retries = len(DEFAULT_MODEL)
             response = None
 
             for attempt in range(max_gemini_retries):
