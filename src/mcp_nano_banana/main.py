@@ -241,7 +241,7 @@ Requirements:
         config_kwargs = {
             "response_modalities": ["IMAGE"],
             "image_config": types.ImageConfig(
-                image_size='1K'
+                image_size='1K',
                 aspect_ratio='16:9',
             ),
         }
