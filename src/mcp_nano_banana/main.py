@@ -252,7 +252,7 @@ Requirements:
 
         for attempt in range(max_gemini_retries):
             try:
-                enhanced_prompt = enhanced_prompt[:500]
+                enhanced_prompt = "Render every text in English." + enhanced_prompt[:500]
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=DEFAULT_MODEL[attempt],
