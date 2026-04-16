@@ -252,10 +252,10 @@ Requirements:
 
         for attempt in range(max_gemini_retries):
             try:
+                enhanced_prompt = enhanced_prompt[:500]
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=DEFAULT_MODEL[attempt],
-                        enhanced_prompt = enhanced_prompt[:500],
                         contents=enhanced_prompt,
                         config=types.GenerateContentConfig(**config_kwargs),
                     ),
