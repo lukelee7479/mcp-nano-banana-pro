@@ -27,7 +27,9 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image" ]
+#DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image" ]
+DEFAULT_MODEL = ["gemini-2.5-flash-image" ]
+
 
 DEFAULT_ENABLE_GROUNDING = False
 
@@ -253,6 +255,7 @@ Requirements:
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=DEFAULT_MODEL[attempt],
+                        enhanced_prompt = enhanced_prompt[:500]
                         contents=enhanced_prompt,
                         config=types.GenerateContentConfig(**config_kwargs),
                     ),
