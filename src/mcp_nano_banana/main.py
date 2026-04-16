@@ -224,11 +224,8 @@ async def generate_image(
 
         enhanced_prompt = f"""
 Requirements:
-- Prioritize crisp, legible text rendering.
+- Prioritize crisp, legible, clean and consistent text rendering.
 - Avoid broken, warped, melted, duplicated, or nonsensical letters.
-- If the image contains signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
-- Preserve correct spacing, alignment, and character shapes.
-- Favor clean composition and high visual fidelity.
 - Do not misspell or distort the letters
 
 {prompt}
