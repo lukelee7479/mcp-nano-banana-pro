@@ -486,12 +486,7 @@ async def edit_image(
         enhanced_prompt = f"""
 Requirements:
 - Preserve the main subject identity and the important visual structure of the original image unless the prompt explicitly asks to change them.
-- Prioritize crisp, legible text rendering.
-- Avoid broken, warped, melted, duplicated, or nonsensical letters.
-- If the edit involves signage, posters, labels, UI, packaging, or typography, render the text cleanly and consistently.
-- Preserve correct spacing, alignment, and character shapes.
-- Maintain high visual fidelity and coherent composition.
-- Do not misspell or distort the letters
+- If the edit involves texts, render the text cleanly and consistently. Do not misspell or distort the letters.
 
 Edit the provided image according to this instruction: {prompt}
 
