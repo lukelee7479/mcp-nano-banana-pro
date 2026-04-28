@@ -49,11 +49,8 @@ def get_env_vars() -> Dict[str, str]:
     return ENV_VARS
 
 def get_genai_client():
-    global GENAI_CLIENT
-    if GENAI_CLIENT is None:
-        env_vars = get_env_vars()
-        GENAI_CLIENT = genai.Client(api_key=env_vars["GEMINI_API_KEY"])
-    return GENAI_CLIENT
+    env_vars = get_env_vars()
+    return genai.Client(api_key=env_vars["GEMINI_API_KEY"])
 
 
 
@@ -672,7 +669,6 @@ def main():
     try:
         # Validate environment variables
         get_env_vars()
-        get_genai_client()
         
         # Configure the Gemini API client
         logger.info("Gemini API configured successfully.")
