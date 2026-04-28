@@ -311,13 +311,13 @@ Requirements:
             "name": f"{uuid.uuid4()}"
         }
 
-        max_retries = 3
+        max_retries = 2
         http_client = get_httpx_client()
         resp = None
         
         for attempt in range(max_retries):
             try:
-                resp = await http_client.post(upload_url, data=payload, timeout=60.0)
+                resp = await http_client.post(upload_url, data=payload, timeout=30.0)
                 resp.raise_for_status()
                 break
             except httpx.TimeoutException:
