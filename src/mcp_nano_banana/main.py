@@ -207,8 +207,8 @@ async def generate_image(
         try:
             uploaded_url = await task_future
             return create_success_response({"url": uploaded_url})
-        except Exception:
-            pass
+        except Exception as e:
+            return create_error_response("task_failed", f"기다리던 기존 요청이 실패했습니다: {str(e)}")
 
     error_type = None
     error_msg = None
@@ -376,11 +376,14 @@ Requirements:
 
     finally:
         image_tasks.pop(cache_key, None)
+        if task_future and not task_future.done():
+            if exception_to_set:
+                task_future.set_exception(exception_to_set)
+            else:
+                task_future.set_exception(asyncio.CancelledError("원본 태스크가 예기치 않게 취소되었습니다."))
 
-    if exception_to_set and not task_future.done():
-        task_future.set_exception(exception_to_set)
-
-    return create_error_response(error_type, error_msg)
+    if error_type and error_msg:
+        return create_error_response(error_type, error_msg)
 
 
 @mcp.tool(
@@ -420,8 +423,8 @@ async def edit_image(
         try:
             uploaded_url = await task_future
             return create_success_response({"url": uploaded_url})
-        except Exception:
-            pass
+        except Exception as e:
+            return create_error_response("task_failed", f"기다리던 기존 요청이 실패하였습니다: {str(e)}")
             
     
     try:
