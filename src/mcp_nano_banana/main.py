@@ -202,7 +202,7 @@ async def generate_image(
 
     if not is_new_task:     
         try:
-            uploaded_url = await asyncio.wait_for(task_future, timeout=120)
+            uploaded_url = await asyncio.wait_for(task_future, timeout=150)
             return create_success_response({"url": uploaded_url})
         except asyncio.TimeoutError:
             return create_error_response("timeout_error", "기존 요청이 작업시간 초과로 실패했습니다.")
@@ -420,7 +420,7 @@ async def edit_image(
 
     if not is_new_task:       
         try:
-            uploaded_url = await asyncio.wait_for(task_future, timeout=120)
+            uploaded_url = await asyncio.wait_for(task_future, timeout=150)
             return create_success_response({"url": uploaded_url})
         except asyncio.TimeoutError:
             return create_error_response("timeout_error", "기존 요청이 작업시간 초과로 실패했습니다.")
