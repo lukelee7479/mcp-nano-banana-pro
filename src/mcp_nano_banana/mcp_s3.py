@@ -13,7 +13,7 @@ from typing import Optional
 
 import boto3
 from botocore.exceptions import ClientError
-from fastmcp import FastMCP, Context
+from mcp.server.fastmcp import FastMCP, Context
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
