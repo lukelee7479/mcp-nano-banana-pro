@@ -24,10 +24,10 @@ Access https://api.imgbb.com/ to generate a IMGBB API Key. This is used to store
         "args": [
             "--from",
             "git+https://github.com/lukelee7479/mcp-nano-banana-pro",
-            "mcp-nano-banana"
+            "mcp-nano-banana-pro"
         ],
         "env": {
-            "GEMINI_API_KEY": "YOUR_API_KEY_HERE",
+            "NANOBANANA_API_KEY": "YOUR_API_KEY_HERE",
             "IMGBB_API_KEY": "YOUR_API_KEY_HERE"
         }
     }
