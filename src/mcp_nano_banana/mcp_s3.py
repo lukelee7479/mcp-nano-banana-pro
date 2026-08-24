@@ -8,6 +8,7 @@ import argparse
 import mimetypes
 import os
 import uuid
+import sys
 from typing import Optional
 
 import boto3
@@ -27,6 +28,7 @@ parser.add_argument("--root", required=True, help="Absolute path on disk allowed
 parser.add_argument("--access-key", required=True, help="AWS Access Key ID for local use")
 parser.add_argument("--secret-key", required=True, help="AWS Secret Access Key")
 args, unknown = parser.parse_known_args()
+sys.argv = [sys.argv[0]] + unknown
 
 ROOT = os.path.abspath(os.path.expanduser(args.root))
 
