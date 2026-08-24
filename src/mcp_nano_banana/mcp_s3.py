@@ -26,7 +26,7 @@ parser.add_argument("--bucket", help="Target S3 bucket name (overrides .env)")
 parser.add_argument("--root", required=True, help="Absolute path on disk allowed for uploads")
 parser.add_argument("--access-key", required=True, help="AWS Access Key ID for local use")
 parser.add_argument("--secret-key", required=True, help="AWS Secret Access Key")
-args = parser.parse_args()
+args, unknown = parser.parse_known_args()
 
 ROOT = os.path.abspath(os.path.expanduser(args.root))
 
