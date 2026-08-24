@@ -358,7 +358,7 @@ Requirements:
                 with open(temp_path, "wb") as f:
                     f.write(base64.b64decode(image_data_base64))
                 s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
-                upload_url = s3_response.url
+                uploaded_url = s3_response.url
                 logger.info("s3 upload done")
             except Exception as s3_error:
                 raise ImageUploadError(f"upload both failed:{s3_error}")
