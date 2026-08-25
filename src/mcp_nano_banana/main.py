@@ -410,7 +410,7 @@ Requirements:
             if exception_to_set:
                 task_future.set_exception(exception_to_set)
             else:
-                task_future.cancel("원본 태스크가 예기치 않게 취소되었습니다."))
+                task_future.cancel("원본 태스크가 예기치 않게 취소되었습니다.")
 
     if error_type and error_msg:
         return create_error_response(error_type, error_msg)
@@ -429,6 +429,7 @@ async def edit_image(
     image_url: str,
     prompt: str,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    ctx: Context = None
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
