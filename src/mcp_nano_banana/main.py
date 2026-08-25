@@ -8,12 +8,12 @@ import httpx
 from typing import Literal
 
 #from io import BytesIO
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from typing import Dict, Any, Optional
 
 #from PIL import Image
 from mcp.server.fastmcp import FastMCP, Context
-from mcp_nano_banana.mcp_s3 import upload_file, ROOT
+from mcp_nano_banana.mcp_s3 import upload_file, ROOT, BUCKET, s3
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
@@ -501,7 +501,7 @@ async def edit_image(
                 logger.info(f"s3 url detected. trying boto3 download:{clean_url}")
                 try:
                     parsed_url = urlparse(clean_url)
-                    s3_key = parsed_url.path.lstrip('/')
+                    s3_key = unquote(parsed_url.path.lstrip('/'))
                     def fetch_from_s3():
                         resp = s3.get_object(Bucket=BUCKET, Key=s3_key)
                         return resp['Body'].read(), resp.get('ContentType', 'image/jpeg')
