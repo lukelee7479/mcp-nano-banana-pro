@@ -28,7 +28,7 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image" ]
+DEFAULT_MODEL = ["gemini-3-pro-image", "gemini-3.1-flash-lite-image" ]
 
 
 DEFAULT_ENABLE_GROUNDING = False
