@@ -38,7 +38,7 @@ if not BUCKET:
     raise ValueError("S3 bucket name must be provided via --bucket argument or S3_BUCKET_NAME in .env file")
 
 # Initialize S3 client with credentials from environment
-aws_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
 
 
 s3 = boto3.client(
