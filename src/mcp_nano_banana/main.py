@@ -357,7 +357,18 @@ Requirements:
         
         except Exception as imgbb_error:
             logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
-            temp_filename = f"fallback_{uuid.uuid4()}.jpg"
+
+            image_bytes = base64.b64decode(image_data_base64)
+
+            ext = "jpg"
+            if image_bytes.startswith(b"\x89PNG"):
+                ext = "png"
+            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                ext = "webp"
+       
+
+            
+            temp_filename = f"fallback_{uuid.uuid4()}.{ext}"
             temp_path = os.path.join(ROOT, temp_filename)
             try:
                 with open(temp_path, "wb") as f:
@@ -673,7 +684,16 @@ Edit the provided image according to this instruction: {prompt}
 
             except Exception as imgbb_error:
                 logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
-                temp_filename = f"fallback_{uuid.uuid4()}.jpg"
+
+                image_bytes = base64.b64decode(image_data_base64)
+
+                ext = "jpg"
+                if image_bytes.startswith(b"\x89PNG"):
+                    ext = "png"
+                elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                    ext = "webp"
+                    
+                temp_filename = f"fallback_{uuid.uuid4()}.{ext}"
                 temp_path = os.path.join(ROOT, temp_filename)
 
                 try:
