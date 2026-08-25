@@ -209,7 +209,10 @@ async def generate_image(
         except asyncio.TimeoutError:
             return create_error_response("timeout_error", "현재 요청의 대기시간이 초과되었습니다. 최초 요청은 처리중일 수 있습니다.")
         except asyncio.CancelledError:
-            return create_error_response("cancel_error", "중복요청은 취소되었습니다.")
+            if task_future.cancelled():
+                return create_error_response("task_cancelled", "기존 이미지 처리 작업이 취소되었습니다.")
+            logger.info("Duplicate request was cancelled")
+            raise
         except Exception as e:
             return create_error_response("task_failed", f"기다리던 기존 요청이 실패했습니다: {str(e)}")
 
@@ -405,7 +408,7 @@ Requirements:
             if exception_to_set:
                 task_future.set_exception(exception_to_set)
             else:
-                task_future.set_exception(asyncio.CancelledError("원본 태스크가 예기치 않게 취소되었습니다."))
+                task_future.cancel("원본 태스크가 예기치 않게 취소되었습니다."))
 
     if error_type and error_msg:
         return create_error_response(error_type, error_msg)
@@ -451,7 +454,10 @@ async def edit_image(
         except asyncio.TimeoutError:
             return create_error_response("timeout_error", "현재 요청의 대기시간이 초과되었습니다. 기존 요청은 작업 중일 수 있습니다.")
         except asyncio.CancelledError:
-            return create_error_response("cancel_error", "중복요청은 취소되었습니다.")
+            if task_future.cancelled():
+                return create_error_response("task_cancelled", "기존 이미지 처리 작업이 취소되었습니다.")
+            logger.info("Duplicate request was cancelled")
+            raise
         except Exception as e:
             return create_error_response("task_failed", f"기다리던 기존 요청이 실패하였습니다: {str(e)}")
             
@@ -710,6 +716,13 @@ Edit the provided image according to this instruction: {prompt}
             task_future.set_exception(e)
         edit_image_tasks.pop(cache_key, None)
         return create_error_response("validation_error", str(e))
+
+    except asyncio.CancelledError:
+        logger.info("Original edit request was cancelled")
+
+        if task_future and not task_future.done():
+            task_future.cancel("원본 이미지 편집 작업이 취소되었습니다.")
+        raise
         
     except Exception as e:
         logger.exception(f"Unexpected error in editing or uploading_image: {e}")
@@ -720,6 +733,8 @@ Edit the provided image according to this instruction: {prompt}
             "unexpected_error",
             f"Unexpected error: {str(e)}"
         )
+    finally:
+        edit_image_tasks.pop(cache_key, None)
 
 def main():
     try:
