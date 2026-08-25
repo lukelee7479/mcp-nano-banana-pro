@@ -494,11 +494,23 @@ async def edit_image(
             max_retries = 3
             image_data = None
 
+            clean_url = image_url.strip()
+
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "image/*,*/*;q=0.8"
+            }
+
             http_client = get_httpx_client()
             for attempt in range(max_retries):
                 try:
                     # await를 사용하여 비동기적으로 GET 요청 전송
-                    response = await http_client.get(image_url, timeout=30.0)
+                    response = await http_client.get(
+                        clean_url,
+                        headers=headers,
+                        timeout=30.0,
+                        follow_redirects=True
+                        )
                     response.raise_for_status()
 
                     content_type = response.headers.get('content-type', '').lower()
