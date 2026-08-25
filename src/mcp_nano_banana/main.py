@@ -247,6 +247,8 @@ Requirements:
             "image_config": types.ImageConfig(
                 image_size='1K',
                 aspect_ratio='16:9',
+                output_mime_type="image/jpeg",
+                output_compression_quality=95,
             ),
         }
 
@@ -540,7 +542,8 @@ Edit the provided image according to this instruction: {prompt}
             config_kwargs = {
                 "response_modalities": ["IMAGE"],
                 "image_config": types.ImageConfig(
-                    
+                    output_mime_type="image/jpeg",
+                    output_coompression_quality=95,
                 ),
             }
 
