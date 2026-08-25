@@ -498,7 +498,7 @@ async def edit_image(
             clean_url = image_url.strip().replace("&amp;", "&")
 
             if BUCKET and BUCKET in clean_url and "amazonaws.com" in clean_url:
-                logger.info(f"s3 url detected. trying boto3 download:{clean_url}")
+                logger.info("s3 url detected. trying boto3 download")
                 try:
                     parsed_url = urlparse(clean_url)
                     s3_key = unquote(parsed_url.path.lstrip('/'))
