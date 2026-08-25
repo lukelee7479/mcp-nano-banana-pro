@@ -28,7 +28,7 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3.1-flash-lite-image", "gemini-3.1-flash-image" ]
+DEFAULT_MODEL = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image" ]
 
 
 DEFAULT_ENABLE_GROUNDING = False
@@ -491,46 +491,72 @@ async def edit_image(
 
         # Image download with specific error handling
         try:
-            max_retries = 3
+            
             image_data = None
+            content_type = "image/jpg"
 
-            clean_url = image_url.strip()
+            clean_url = image_url.strip().replace("&amp;", "&")
 
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "image/*,*/*;q=0.8"
-            }
-
-            http_client = get_httpx_client()
-            for attempt in range(max_retries):
+            if BUCKET and BUCKET in clean_url and "amazonaws.com" in clean_url:
+                logger.info(f"s3 url detected. trying boto3 download:{clean_url}")
                 try:
-                    # await를 사용하여 비동기적으로 GET 요청 전송
-                    response = await http_client.get(
-                        clean_url,
-                        headers=headers,
-                        timeout=30.0,
-                        follow_redirects=True
+                    parsed_url = urlparse(clean_url)
+                    s3_key = parsed_url.path.lstrip('/')
+                    def fetch_from_s3():
+                        resp = s3.get_object(Bucket=BUCKET, Key=s3_key)
+                        return resp['Body'].read(), resp.get('ContentType', 'image/jpeg')
+                        
+                    image_data, content_type = await asyncio.to_thread(fetch_from_s3)
+                    logger.info("image downloaded from s3")
+                except Exception as e:
+                    logger.warning(f"download from s3 failed: {e}")
+
+
+
+            if not image_data:
+                max_retries = 3
+
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "image/*,*/*;q=0.8"
+                }
+
+                http_client = get_httpx_client()
+                for attempt in range(max_retries):
+                    try:
+                        # await를 사용하여 비동기적으로 GET 요청 전송
+                        response = await http_client.get(
+                            clean_url,
+                            headers=headers,
+                            timeout=30.0,
+                            follow_redirects=True
                         )
-                    response.raise_for_status()
+                        response.raise_for_status()
 
-                    content_type = response.headers.get('content-type', '').lower()
-                    if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
-                        raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
+                        res_content_type = response.headers.get('content-type', '').lower()
+                        if not any(img_type in res_content_type for img_type in ['image/', 'application/octet-stream']):
+                            raise ValidationError(f"URL does not point to an image. Content-Type: {res_content_type}")
 
-                    image_data = response.content
-                    break
+                        image_data = response.content
+                        content_type = res_content_type
+                        break
 
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ValidationError("Image download timed out after multiple attempts")
-                    logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    except httpx.HTTPStatusError as e:
+                        if attempt == max_retries -1:
+                            raise ValidationError(f"HTTP download status error: {e.response.status_code}")
+                        await asyncio.sleep(2 ** attempt)
 
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ValidationError(f"Connection error during image download: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ValidationError("Image download timed out after multiple attempts")
+                        logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ValidationError(f"Connection error during image download: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
             if not image_data:
                 raise ValidationError("No image data downloaded")
