@@ -28,7 +28,7 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3-pro-image", "gemini-3.1-flash-lite-image" ]
+DEFAULT_MODEL = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image" ]
 
 
 DEFAULT_ENABLE_GROUNDING = False
@@ -259,8 +259,6 @@ Requirements:
             try:
                 if attempt>0:
                     enhanced_prompt = "Render every text in English.\n" + enhanced_prompt[:500]
-                else:
-                    enhanced_prompt = "Render every text in Korean.\n" + enhanced_prompt
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=DEFAULT_MODEL[attempt],
