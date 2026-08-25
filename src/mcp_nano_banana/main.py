@@ -633,34 +633,58 @@ Edit the provided image according to this instruction: {prompt}
                 "name": f"{uuid.uuid4()}"
             }
 
-            max_retries = 3
-            http_client = get_httpx_client()
-            for attempt in range(max_retries):
+            try:
+                max_retries = 2
+                http_client = get_httpx_client()
+                
+                for attempt in range(max_retries):
+                    try:
+                        resp = await http_client.post(upload_url, data=payload, timeout=30.0)
+                        resp.raise_for_status()
+                        break
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError("Upload timed out after multiple attempts")
+                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+
+                resp_json = resp.json()
+
+                if "data" not in resp_json:
+                    error_msg = resp_json.get("error", {}).get("message", "Unknown error")
+                    raise ImageUploadError(f"ImgBB upload failed: {error_msg}")
+
+                if "url" not in resp_json["data"]:
+                    raise ImageUploadError("ImgBB response missing URL field")
+
+                uploaded_url = resp_json["data"]["url"]
+
+            except Exception as imgbb_error:
+                logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
+                temp_filename = f"fallback_{uuid.uuid4()}.jpg"
+                temp_path = os.path.join(ROOT, temp_filename)
+
                 try:
-                    resp = await http_client.post(upload_url, data=payload, timeout=60.0)
-                    resp.raise_for_status()
-                    break
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    with open(temp_path, "wb") as f:
+                        f.write(base64.b64decode(image_data_base64))
 
-            resp_json = resp.json()
+                    s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
+                    uploaded_url = s3_response.url
+                    logger.info("S3 upload done")
 
-            if "data" not in resp_json:
-                error_msg = resp_json.get("error", {}).get("message", "Unknown error")
-                raise ImageUploadError(f"ImgBB upload failed: {error_msg}")
+                except Exception as s3_error:
+                    raise ImageUploadError(f"both upload failed: {s3_error}")
 
-            if "url" not in resp_json["data"]:
-                raise ImageUploadError("ImgBB response missing URL field")
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
 
-            uploaded_url = resp_json["data"]["url"]
+            
             validate_image_url(uploaded_url)
 
             logger.info(f"Edited image uploaded successfully to {uploaded_url}")
