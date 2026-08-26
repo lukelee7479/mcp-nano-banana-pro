@@ -13,8 +13,8 @@ import hashlib
 
 INSTANCE_ID = (
     f"{os.getenv('HOSTNAME', 'unknown')}"
-    f"-{os.getpid()}"
-    f"-{uuid.uuid4().hex[:8]}"
+    f"&{os.getpid()}"
+    f"&{uuid.uuid4().hex[:8]}&end&"
 )
 
 #from io import BytesIO
