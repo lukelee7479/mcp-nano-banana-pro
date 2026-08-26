@@ -118,7 +118,7 @@ def generate_public_url(key: str) -> str:
     return f"https://{BUCKET}.s3.{aws_region}.amazonaws.com/{key}"
 
 
-async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Context):
+async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Context, mime_type: str = "application/octet-stream"):
     """Upload file with progress reporting using multipart upload for better control"""
     file_size = os.path.getsize(local_path)
     
@@ -129,7 +129,7 @@ async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Cont
         # For files larger than 100MB, use multipart upload with progress
         if file_size > 100 * 1024 * 1024:  # 100MB
             # Initialize multipart upload
-            response = s3.create_multipart_upload(Bucket=bucket, Key=key)
+            response = s3.create_multipart_upload(Bucket=bucket, Key=key, ContentType=mime_type)
             upload_id = response['UploadId']
             
             parts = []
@@ -173,7 +173,7 @@ async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Cont
         else:
             # For smaller files, use simple upload with progress checkpoints
             await ctx.report_progress(progress=25, total=100)
-            s3.upload_file(local_path, bucket, key)
+            s3.upload_file(local_path, bucket, key, ExtraArgs={"ContentType": mime_type})
             await ctx.report_progress(progress=90, total=100)
     
     except ClientError as e:
@@ -228,10 +228,12 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
                 raise ValueError(f"Failed to check if file exists: {e}")
     else:
         await ctx.info(f"Force overwrite enabled, will replace existing file if present")
-    
+
+  
     # Upload to S3 with progress tracking
+    mime_type = mimetypes.guess_type(full_local_path)[0] or "application/octet-stream"
     try:
-        await upload_with_progress(full_local_path, BUCKET, s3_key, ctx)
+        await upload_with_progress(full_local_path, BUCKET, s3_key, ctx, mime_type)
     except ClientError as e:
         await ctx.error(f"Failed to upload file: {e}")
         raise ValueError(f"Failed to upload file: {e}")
