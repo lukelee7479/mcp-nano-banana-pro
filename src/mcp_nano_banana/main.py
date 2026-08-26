@@ -198,6 +198,7 @@ async def generate_image(
             cached_data = _image_cache[cache_key]
             if current_time - cached_data["timestamp"] <=CACHE_TTL_SECONDS:
                 logger.info(f"same request in an hour, return generated image:{prompt}")
+                return create_success_response({"url": cached_data["url"]})
             else:
                 logger.info(f"Cache expired. generate new image:{prompt}")
                 del _image_cache[cache_key]
