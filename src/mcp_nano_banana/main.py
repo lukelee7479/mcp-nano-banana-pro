@@ -251,6 +251,8 @@ async def generate_image(
     is_new_task = False
     task_future = None
 
+    cache_key = prompt.strip().lower()
+
     # 1. same job running
     async with lock:
         
