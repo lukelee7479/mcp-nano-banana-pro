@@ -114,6 +114,9 @@ def generate_presigned_url(key: str, expires_in: int) -> str:
     except ClientError as e:
         raise ValueError(f"Failed generating presigned URL: {e}")
 
+def generate_public_url(key: str) -> str:
+    return f"https://{BUCKET}.s3.{aws_region}.amazonaws.com/{key}"
+
 
 async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Context):
     """Upload file with progress reporting using multipart upload for better control"""
@@ -234,15 +237,15 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
         raise ValueError(f"Failed to upload file: {e}")
     
     # Generate presigned URL
-    presigned_url = generate_presigned_url(s3_key, expires_in)
+    public_url = generate_public_url(s3_key)
     
     # Determine MIME type
     mime_type = mimetypes.guess_type(full_local_path)[0] or "application/octet-stream"
     
-    await ctx.info(f"Upload completed successfully. Presigned URL expires in {expires_in} seconds.")
+    await ctx.info(f"Upload completed successfully.Public URL Generated.")
     
     return UploadResponse(
-        url=presigned_url,
+        url=public_url,
         size=file_size,
         mime_type=mime_type,
         s3_key=s3_key
