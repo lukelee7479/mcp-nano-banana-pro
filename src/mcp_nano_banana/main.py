@@ -6,6 +6,8 @@ import uuid
 import json
 import httpx
 import time
+import hashlib
+from botocore.exceptions import ClientError
 from typing import Literal
 
 #from io import BytesIO
@@ -23,7 +25,7 @@ image_tasks = {}
 edit_image_tasks = {}
 _task_lock = None
 
-_image_cache = {}
+
 CACHE_TTL_SECONDS = 3600
 
 def get_task_lock():
@@ -163,6 +165,56 @@ def create_success_response(data: Any) -> str:
     }
     return json.dumps(success_response)
 
+def get_cache_s3_key(prompt: str) -> str:
+    prompt_hash = hashlib.sha256(prompt.strip().lower().encode('utf-8')).hexdigest()
+    return f"cache/{prompt_hash}.json"
+    
+async def get_s3_cache(prompt: str) -> Optional[str]:
+    if not BUCKET or not s3:
+        return None
+        
+    cache_key = get_cache_s3_key(prompt)
+    try:
+        def _fetch():
+            resp = s3.get_object(Bucket=BUCKET, Key=cache_key)
+            return resp['Body'].read().decode('utf-8')
+
+        data_str = await asyncio.to_thread(_fetch)
+        cache_data = json.loads(data_str)
+
+        if time.time() - cache_data["timestamp"] <= CACHE_TTL_SECONDS:
+            return cache_data["url"]
+            
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'NoSuchKey':
+            logger.warning(f"S3 Cache read error: {e}")
+    except Exception as e:
+        logger.warning(f"S3 Cache parsing error: {e}")
+        
+    return None
+
+async def set_s3_cache(prompt: str, url: str):
+    if not BUCKET or not s3:
+        return
+        
+    cache_key = get_cache_s3_key(prompt)
+    cache_data = {
+        "url": url,
+        "timestamp": time.time()
+    }
+    try:
+        def _upload():
+            s3.put_object(
+                Bucket=BUCKET,
+                Key=cache_key,
+                Body=json.dumps(cache_data).encode('utf-8'),
+                ContentType='application/json'
+            )
+        await asyncio.to_thread(_upload)
+    except Exception as e:
+        logger.warning(f"S3 Cache write error: {e}")
+
+
 # --- MCP Server Setup ---
 # Create a FastMCP server instance
 mcp = FastMCP(
@@ -189,27 +241,19 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
-    cache_key = " ".join(
-    prompt.strip().lower().split()
-    )
-    current_time = time.time()
-    lock = get_task_lock()
-
-    async with lock:
-        if cache_key in _image_cache:
-            cached_data = _image_cache[cache_key]
-            if current_time - cached_data["timestamp"] <=CACHE_TTL_SECONDS:
-                logger.info(f"same request in an hour, return generated image:{prompt}")
-                return create_success_response({"url": cached_data["url"]})
-            else:
-                logger.info(f"Cache expired. generate new image:{prompt}")
-                del _image_cache[cache_key]
+    cached_url = await get_s3_cache(prompt)
+    if cached_url:
+        logger.info(f"same request, return generated image: {prompt}")
+        return create_success_response({"url": cached_url})
     
+                
+    lock = get_task_lock()
     is_new_task = False
     task_future = None
 
     # 1. same job running
     async with lock:
+        
         if cache_key in image_tasks:
             logger.info(f"Duplicate request detected. Waiting for the existing task for: {prompt}")
             task_future = image_tasks[cache_key]
@@ -291,9 +335,6 @@ Requirements:
                     raise e
                 await asyncio.sleep(2) 
 
-
-
-        
 
         if not response:
             raise ImageGenerationError("Gemini API returned empty response")
@@ -406,11 +447,8 @@ Requirements:
         if not task_future.done():
             task_future.set_result(uploaded_url)
 
-        async with get_task_lock():
-            _image_cache[cache_key] = {
-                "url": uploaded_url,
-                "timestamp":time.time()
-            }
+        await set_s3_cache(prompt, uploaded_url)
+        logger.info("s3 cache saved")
         
         return create_success_response({"url": uploaded_url})
 
