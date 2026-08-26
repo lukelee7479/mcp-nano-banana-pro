@@ -8,15 +8,6 @@ import httpx
 import time
 from typing import Literal
 
-#instanceID test
-import hashlib
-
-INSTANCE_ID = (
-    f"{os.getenv('HOSTNAME', 'unknown')}"
-    f"&{os.getpid()}"
-    f"&{uuid.uuid4().hex[:8]}&end&"
-)
-
 #from io import BytesIO
 from urllib.parse import urlparse, unquote
 from typing import Dict, Any, Optional
@@ -394,7 +385,7 @@ Requirements:
        
 
             
-            temp_filename = f"{INSTANCE_ID}_{uuid.uuid4()}.{ext}"
+            temp_filename = f"{uuid.uuid4()}.{ext}"
             temp_path = os.path.join(ROOT, temp_filename)
             try:
                 with open(temp_path, "wb") as f:
@@ -763,7 +754,7 @@ Edit the provided image according to this instruction: {prompt}
                 elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
                     ext = "webp"
                     
-                temp_filename = f"fallback_{uuid.uuid4()}.{ext}"
+                temp_filename = f"{uuid.uuid4()}.{ext}"
                 temp_path = os.path.join(ROOT, temp_filename)
 
                 try:
