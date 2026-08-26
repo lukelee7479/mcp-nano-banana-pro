@@ -5,6 +5,7 @@ import base64
 import uuid
 import json
 import httpx
+import time
 from typing import Literal
 
 #from io import BytesIO
@@ -21,6 +22,9 @@ from google.genai import errors as genai_errors
 image_tasks = {}
 edit_image_tasks = {}
 _task_lock = None
+
+_image_cache = {}
+CACHE_TTL_SECONDS = 3600
 
 def get_task_lock():
     global _task_lock
@@ -186,8 +190,18 @@ async def generate_image(
     Generates an image from a text prompt and returns the url of the image.
     """
     cache_key = prompt.strip().lower()
-
+    current_time = time.time()
     lock = get_task_lock()
+
+    async with lock:
+        if cache_key in _image_cache:
+            cached_data = _image_cache[cache_key]
+            if current_time - cached_data["timestamp"] <=CACHE_TTL_SECONDS:
+                logger.info(f"same request in an hour, return generated image:{prompt}")
+            else:
+                logger.info(f"Cache expired. generate new image:{prompt}")
+                del _image_cache[cache_key]
+    
     is_new_task = False
     task_future = None
 
@@ -388,6 +402,12 @@ Requirements:
 
         if not task_future.done():
             task_future.set_result(uploaded_url)
+
+        async with get_task_lock():
+            _image_cache[cache_key] = {
+                "url": uploaded_url,
+                "timestamp":time.time()
+            }
         
         return create_success_response({"url": uploaded_url})
 
