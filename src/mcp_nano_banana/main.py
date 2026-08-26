@@ -8,6 +8,15 @@ import httpx
 import time
 from typing import Literal
 
+#instanceID test
+import hashlib
+
+INSTANCE_ID = (
+    f"{os.getenv('HOSTNAME', 'unknown')}"
+    f"-{os.getpid()}"
+    f"-{uuid.uuid4().hex[:8]}"
+)
+
 #from io import BytesIO
 from urllib.parse import urlparse, unquote
 from typing import Dict, Any, Optional
@@ -189,7 +198,9 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
-    cache_key = prompt.strip().lower()
+    cache_key = " ".join(
+    prompt.strip().lower().split()
+    )
     current_time = time.time()
     lock = get_task_lock()
 
@@ -383,7 +394,7 @@ Requirements:
        
 
             
-            temp_filename = f"fallback_{uuid.uuid4()}.{ext}"
+            temp_filename = f"{INSTANCE_ID}_{uuid.uuid4()}.{ext}"
             temp_path = os.path.join(ROOT, temp_filename)
             try:
                 with open(temp_path, "wb") as f:
