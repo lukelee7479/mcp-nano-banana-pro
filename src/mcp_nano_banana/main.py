@@ -5,9 +5,9 @@ import base64
 import uuid
 import json
 import httpx
-import time
-import hashlib
-from botocore.exceptions import ClientError
+#import time
+#import hashlib
+#from botocore.exceptions import ClientError
 from typing import Literal
 
 #from io import BytesIO
@@ -26,7 +26,7 @@ edit_image_tasks = {}
 _task_lock = None
 
 
-CACHE_TTL_SECONDS = 3600
+#CACHE_TTL_SECONDS = 3600
 
 def get_task_lock():
     global _task_lock
@@ -164,7 +164,7 @@ def create_success_response(data: Any) -> str:
         "timestamp": asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else None
     }
     return json.dumps(success_response)
-
+"""
 def get_cache_s3_key(prompt: str) -> str:
     prompt_hash = hashlib.sha256(prompt.strip().lower().encode('utf-8')).hexdigest()
     return f"cache/{prompt_hash}.json"
@@ -213,7 +213,7 @@ async def set_s3_cache(prompt: str, url: str):
         await asyncio.to_thread(_upload)
     except Exception as e:
         logger.warning(f"S3 Cache write error: {e}")
-
+"""
 
 # --- MCP Server Setup ---
 # Create a FastMCP server instance
@@ -241,11 +241,12 @@ async def generate_image(
     """
     Generates an image from a text prompt and returns the url of the image.
     """
+    """
     cached_url = await get_s3_cache(prompt)
     if cached_url:
         logger.info(f"same request, return generated image: {prompt}")
         return create_success_response({"url": cached_url})
-    
+    """
                 
     lock = get_task_lock()
     is_new_task = False
@@ -449,8 +450,10 @@ Requirements:
         if not task_future.done():
             task_future.set_result(uploaded_url)
 
+        """
         await set_s3_cache(prompt, uploaded_url)
         logger.info("s3 cache saved")
+        """
         
         return create_success_response({"url": uploaded_url})
 
