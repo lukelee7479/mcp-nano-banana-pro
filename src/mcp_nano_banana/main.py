@@ -5,14 +5,18 @@ import base64
 import uuid
 import json
 import httpx
+#import time
+#import hashlib
+#from botocore.exceptions import ClientError
 from typing import Literal
 
 #from io import BytesIO
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 from typing import Dict, Any, Optional
 
 #from PIL import Image
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
+from mcp_nano_banana.mcp_s3 import upload_file, ROOT, BUCKET, s3
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
@@ -21,13 +25,16 @@ image_tasks = {}
 edit_image_tasks = {}
 _task_lock = None
 
+
+#CACHE_TTL_SECONDS = 3600
+
 def get_task_lock():
     global _task_lock
     if _task_lock is None:
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-3.1-flash-image-preview", "gemini-2.5-flash-image" ]
+DEFAULT_MODEL = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image" ]
 
 
 DEFAULT_ENABLE_GROUNDING = False
@@ -157,6 +164,56 @@ def create_success_response(data: Any) -> str:
         "timestamp": asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else None
     }
     return json.dumps(success_response)
+"""
+def get_cache_s3_key(prompt: str) -> str:
+    prompt_hash = hashlib.sha256(prompt.strip().lower().encode('utf-8')).hexdigest()
+    return f"cache/{prompt_hash}.json"
+    
+async def get_s3_cache(prompt: str) -> Optional[str]:
+    if not BUCKET or not s3:
+        return None
+        
+    cache_key = get_cache_s3_key(prompt)
+    try:
+        def _fetch():
+            resp = s3.get_object(Bucket=BUCKET, Key=cache_key)
+            return resp['Body'].read().decode('utf-8')
+
+        data_str = await asyncio.to_thread(_fetch)
+        cache_data = json.loads(data_str)
+
+        if time.time() - cache_data["timestamp"] <= CACHE_TTL_SECONDS:
+            return cache_data["url"]
+            
+    except ClientError as e:
+        if e.response['Error']['Code'] != 'NoSuchKey':
+            logger.warning(f"S3 Cache read error: {e}")
+    except Exception as e:
+        logger.warning(f"S3 Cache parsing error: {e}")
+        
+    return None
+
+async def set_s3_cache(prompt: str, url: str):
+    if not BUCKET or not s3:
+        return
+        
+    cache_key = get_cache_s3_key(prompt)
+    cache_data = {
+        "url": url,
+        "timestamp": time.time()
+    }
+    try:
+        def _upload():
+            s3.put_object(
+                Bucket=BUCKET,
+                Key=cache_key,
+                Body=json.dumps(cache_data).encode('utf-8'),
+                ContentType='application/json'
+            )
+        await asyncio.to_thread(_upload)
+    except Exception as e:
+        logger.warning(f"S3 Cache write error: {e}")
+"""
 
 # --- MCP Server Setup ---
 # Create a FastMCP server instance
@@ -179,18 +236,27 @@ logger.info(f"MCP server '{mcp.name}' created.")
 async def generate_image(
     prompt: str,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    ctx: Context = None
 ) -> str:
     """
     Generates an image from a text prompt and returns the url of the image.
     """
-    cache_key = prompt.strip().lower()
-
+    """
+    cached_url = await get_s3_cache(prompt)
+    if cached_url:
+        logger.info(f"same request, return generated image: {prompt}")
+        return create_success_response({"url": cached_url})
+    """
+                
     lock = get_task_lock()
     is_new_task = False
     task_future = None
 
+    cache_key = prompt.strip().lower()
+
     # 1. same job running
     async with lock:
+        
         if cache_key in image_tasks:
             logger.info(f"Duplicate request detected. Waiting for the existing task for: {prompt}")
             task_future = image_tasks[cache_key]
@@ -202,10 +268,15 @@ async def generate_image(
 
     if not is_new_task:     
         try:
-            uploaded_url = await asyncio.wait_for(task_future, timeout=150)
+            uploaded_url = await asyncio.wait_for(asyncio.shield(task_future), timeout=150)
             return create_success_response({"url": uploaded_url})
         except asyncio.TimeoutError:
-            return create_error_response("timeout_error", "기존 요청이 작업시간 초과로 실패했습니다.")
+            return create_error_response("timeout_error", "현재 요청의 대기시간이 초과되었습니다. 최초 요청은 처리중일 수 있습니다.")
+        except asyncio.CancelledError:
+            if task_future.cancelled():
+                return create_error_response("task_cancelled", "기존 이미지 처리 작업이 취소되었습니다.")
+            logger.info("Duplicate request was cancelled")
+            raise
         except Exception as e:
             return create_error_response("task_failed", f"기다리던 기존 요청이 실패했습니다: {str(e)}")
 
@@ -268,9 +339,6 @@ Requirements:
                 await asyncio.sleep(2) 
 
 
-
-        
-
         if not response:
             raise ImageGenerationError("Gemini API returned empty response")
 
@@ -313,41 +381,79 @@ Requirements:
             "name": f"{uuid.uuid4()}"
         }
 
-        max_retries = 2
-        http_client = get_httpx_client()
-        resp = None
+        uploaded_url = None
+
+        try:
+            max_retries = 2
+            http_client = get_httpx_client()
+            resp = None
         
-        for attempt in range(max_retries):
+            for attempt in range(max_retries):
+                try:
+                    resp = await http_client.post(upload_url, data=payload, timeout=30.0)
+                    resp.raise_for_status()
+                    break
+                except httpx.TimeoutException:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError("Upload timed out after multiple attempts")
+                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                    await asyncio.sleep(2 ** attempt)
+                except httpx.RequestError as e:
+                    if attempt == max_retries - 1:
+                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                    await asyncio.sleep(2 ** attempt)
+
+            resp_json = resp.json()
+
+            if "data" not in resp_json:
+                error_msg_upload = resp_json.get("error", {}).get("message", "Unknown error")
+                raise ImageUploadError(f"ImgBB upload failed: {error_msg_upload}")
+
+            if "url" not in resp_json["data"]:
+                raise ImageUploadError("ImgBB response missing URL field")
+                
+
+            uploaded_url = resp_json["data"]["url"]
+        
+        except Exception as imgbb_error:
+            logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
+
+            image_bytes = base64.b64decode(image_data_base64)
+
+            ext = "jpg"
+            if image_bytes.startswith(b"\x89PNG"):
+                ext = "png"
+            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                ext = "webp"
+       
+
+            
+            temp_filename = f"{uuid.uuid4()}.{ext}"
+            temp_path = os.path.join(ROOT, temp_filename)
             try:
-                resp = await http_client.post(upload_url, data=payload, timeout=30.0)
-                resp.raise_for_status()
-                break
-            except httpx.TimeoutException:
-                if attempt == max_retries - 1:
-                    raise ImageUploadError("Upload timed out after multiple attempts")
-                logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                await asyncio.sleep(2 ** attempt)
-            except httpx.RequestError as e:
-                if attempt == max_retries - 1:
-                    raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                await asyncio.sleep(2 ** attempt)
+                with open(temp_path, "wb") as f:
+                    f.write(base64.b64decode(image_data_base64))
+                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
+                uploaded_url = s3_response.url
+                logger.info("s3 upload done")
+            except Exception as s3_error:
+                raise ImageUploadError(f"upload both failed:{s3_error}")
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
 
-        resp_json = resp.json()
-
-        if "data" not in resp_json:
-            error_msg_upload = resp_json.get("error", {}).get("message", "Unknown error")
-            raise ImageUploadError(f"ImgBB upload failed: {error_msg_upload}")
-
-        if "url" not in resp_json["data"]:
-            raise ImageUploadError("ImgBB response missing URL field")
-
-        uploaded_url = resp_json["data"]["url"]
+        
         validate_image_url(uploaded_url)
         logger.info(f"Image uploaded successfully to {uploaded_url}")
 
         if not task_future.done():
             task_future.set_result(uploaded_url)
+
+        """
+        await set_s3_cache(prompt, uploaded_url)
+        logger.info("s3 cache saved")
+        """
         
         return create_success_response({"url": uploaded_url})
 
@@ -379,7 +485,7 @@ Requirements:
             if exception_to_set:
                 task_future.set_exception(exception_to_set)
             else:
-                task_future.set_exception(asyncio.CancelledError("원본 태스크가 예기치 않게 취소되었습니다."))
+                task_future.cancel("원본 태스크가 예기치 않게 취소되었습니다.")
 
     if error_type and error_msg:
         return create_error_response(error_type, error_msg)
@@ -398,6 +504,7 @@ async def edit_image(
     image_url: str,
     prompt: str,
     enable_grounding: bool = DEFAULT_ENABLE_GROUNDING,
+    ctx: Context = None
 ) -> str:
     """
     Edits an existing image from a URL based on a text prompt and returns the edited image as a URL.
@@ -420,10 +527,15 @@ async def edit_image(
 
     if not is_new_task:       
         try:
-            uploaded_url = await asyncio.wait_for(task_future, timeout=150)
+            uploaded_url = await asyncio.wait_for(asyncio.shield(task_future), timeout=150)
             return create_success_response({"url": uploaded_url})
         except asyncio.TimeoutError:
-            return create_error_response("timeout_error", "기존 요청이 작업시간 초과로 실패했습니다.")
+            return create_error_response("timeout_error", "현재 요청의 대기시간이 초과되었습니다. 기존 요청은 작업 중일 수 있습니다.")
+        except asyncio.CancelledError:
+            if task_future.cancelled():
+                return create_error_response("task_cancelled", "기존 이미지 처리 작업이 취소되었습니다.")
+            logger.info("Duplicate request was cancelled")
+            raise
         except Exception as e:
             return create_error_response("task_failed", f"기다리던 기존 요청이 실패하였습니다: {str(e)}")
             
@@ -443,34 +555,72 @@ async def edit_image(
 
         # Image download with specific error handling
         try:
-            max_retries = 3
+            
             image_data = None
+            content_type = "image/jpg"
 
-            http_client = get_httpx_client()
-            for attempt in range(max_retries):
+            clean_url = image_url.strip().replace("&amp;", "&")
+
+            if BUCKET and BUCKET in clean_url and "amazonaws.com" in clean_url:
+                logger.info("s3 url detected. trying boto3 download")
                 try:
-                    # await를 사용하여 비동기적으로 GET 요청 전송
-                    response = await http_client.get(image_url, timeout=30.0)
-                    response.raise_for_status()
+                    parsed_url = urlparse(clean_url)
+                    s3_key = unquote(parsed_url.path.lstrip('/'))
+                    def fetch_from_s3():
+                        resp = s3.get_object(Bucket=BUCKET, Key=s3_key)
+                        return resp['Body'].read(), resp.get('ContentType', 'image/jpeg')
+                        
+                    image_data, content_type = await asyncio.to_thread(fetch_from_s3)
+                    logger.info("image downloaded from s3")
+                except Exception as e:
+                    logger.warning(f"download from s3 failed: {e}")
 
-                    content_type = response.headers.get('content-type', '').lower()
-                    if not any(img_type in content_type for img_type in ['image/', 'application/octet-stream']):
-                        raise ValidationError(f"URL does not point to an image. Content-Type: {content_type}")
 
-                    image_data = response.content
-                    break
 
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ValidationError("Image download timed out after multiple attempts")
-                    logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+            if not image_data:
+                max_retries = 3
 
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ValidationError(f"Connection error during image download: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept": "image/*,*/*;q=0.8"
+                }
+
+                http_client = get_httpx_client()
+                for attempt in range(max_retries):
+                    try:
+                        # await를 사용하여 비동기적으로 GET 요청 전송
+                        response = await http_client.get(
+                            clean_url,
+                            headers=headers,
+                            timeout=30.0,
+                            follow_redirects=True
+                        )
+                        response.raise_for_status()
+
+                        res_content_type = response.headers.get('content-type', '').lower()
+                        if not any(img_type in res_content_type for img_type in ['image/', 'application/octet-stream']):
+                            raise ValidationError(f"URL does not point to an image. Content-Type: {res_content_type}")
+
+                        image_data = response.content
+                        content_type = res_content_type
+                        break
+
+                    except httpx.HTTPStatusError as e:
+                        if attempt == max_retries -1:
+                            raise ValidationError(f"HTTP download status error: {e.response.status_code}")
+                        await asyncio.sleep(2 ** attempt)
+
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ValidationError("Image download timed out after multiple attempts")
+                        logger.warning(f"Download attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ValidationError(f"Connection error during image download: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
 
             if not image_data:
                 raise ValidationError("No image data downloaded")
@@ -506,7 +656,7 @@ Edit the provided image according to this instruction: {prompt}
             config_kwargs = {
                 "response_modalities": ["IMAGE"],
                 "image_config": types.ImageConfig(
-                    
+       
                 ),
             }
 
@@ -605,34 +755,67 @@ Edit the provided image according to this instruction: {prompt}
                 "name": f"{uuid.uuid4()}"
             }
 
-            max_retries = 3
-            http_client = get_httpx_client()
-            for attempt in range(max_retries):
+            try:
+                max_retries = 2
+                http_client = get_httpx_client()
+                
+                for attempt in range(max_retries):
+                    try:
+                        resp = await http_client.post(upload_url, data=payload, timeout=30.0)
+                        resp.raise_for_status()
+                        break
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError("Upload timed out after multiple attempts")
+                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+
+                resp_json = resp.json()
+
+                if "data" not in resp_json:
+                    error_msg = resp_json.get("error", {}).get("message", "Unknown error")
+                    raise ImageUploadError(f"ImgBB upload failed: {error_msg}")
+
+                if "url" not in resp_json["data"]:
+                    raise ImageUploadError("ImgBB response missing URL field")
+
+                uploaded_url = resp_json["data"]["url"]
+
+            except Exception as imgbb_error:
+                logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
+
+                image_bytes = base64.b64decode(image_data_base64)
+
+                ext = "jpg"
+                if image_bytes.startswith(b"\x89PNG"):
+                    ext = "png"
+                elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                    ext = "webp"
+                    
+                temp_filename = f"{uuid.uuid4()}.{ext}"
+                temp_path = os.path.join(ROOT, temp_filename)
+
                 try:
-                    resp = await http_client.post(upload_url, data=payload, timeout=60.0)
-                    resp.raise_for_status()
-                    break
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
+                    with open(temp_path, "wb") as f:
+                        f.write(base64.b64decode(image_data_base64))
 
-            resp_json = resp.json()
+                    s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
+                    uploaded_url = s3_response.url
+                    logger.info("S3 upload done")
 
-            if "data" not in resp_json:
-                error_msg = resp_json.get("error", {}).get("message", "Unknown error")
-                raise ImageUploadError(f"ImgBB upload failed: {error_msg}")
+                except Exception as s3_error:
+                    raise ImageUploadError(f"both upload failed: {s3_error}")
 
-            if "url" not in resp_json["data"]:
-                raise ImageUploadError("ImgBB response missing URL field")
+                finally:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
 
-            uploaded_url = resp_json["data"]["url"]
+            
             validate_image_url(uploaded_url)
 
             logger.info(f"Edited image uploaded successfully to {uploaded_url}")
@@ -658,6 +841,13 @@ Edit the provided image according to this instruction: {prompt}
             task_future.set_exception(e)
         edit_image_tasks.pop(cache_key, None)
         return create_error_response("validation_error", str(e))
+
+    except asyncio.CancelledError:
+        logger.info("Original edit request was cancelled")
+
+        if task_future and not task_future.done():
+            task_future.cancel("원본 이미지 편집 작업이 취소되었습니다.")
+        raise
         
     except Exception as e:
         logger.exception(f"Unexpected error in editing or uploading_image: {e}")
@@ -668,6 +858,8 @@ Edit the provided image according to this instruction: {prompt}
             "unexpected_error",
             f"Unexpected error: {str(e)}"
         )
+    finally:
+        edit_image_tasks.pop(cache_key, None)
 
 def main():
     try:
