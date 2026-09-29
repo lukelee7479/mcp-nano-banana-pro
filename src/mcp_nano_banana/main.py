@@ -371,10 +371,7 @@ Requirements:
             raise ImageGenerationError("No image data found in response")
 
         upload_url = "https://api.imgbb.com/1/upload"
-        image_size = (len(image_data_base64) * 3) // 4
-        if image_size > 32 * 1024 * 1024:
-            raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
-
+        
         payload = {
             "key": env_vars['IMGBB_API_KEY'],
             "image": image_data_base64,
@@ -384,6 +381,10 @@ Requirements:
         uploaded_url = None
 
         try:
+            image_size = (len(image_data_base64) * 3) // 4
+            if image_size > 32 * 1024 * 1024:
+                raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
+
             max_retries = 2
             http_client = get_httpx_client()
             resp = None
@@ -745,10 +746,6 @@ Edit the provided image according to this instruction: {prompt}
         try:
             upload_url = "https://api.imgbb.com/1/upload"
 
-            image_size = (len(image_data_base64) * 3) // 4
-            if image_size > 32 * 1024 * 1024:
-                raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
-
             payload = {
                 "key": env_vars['IMGBB_API_KEY'],
                 "image": image_data_base64,
@@ -756,6 +753,10 @@ Edit the provided image according to this instruction: {prompt}
             }
 
             try:
+                image_size = (len(image_data_base64) * 3) // 4
+                if image_size > 32 * 1024 * 1024:
+                    raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
+                    
                 max_retries = 2
                 http_client = get_httpx_client()
                 
