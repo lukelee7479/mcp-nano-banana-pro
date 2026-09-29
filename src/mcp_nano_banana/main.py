@@ -415,6 +415,7 @@ Requirements:
                 
 
             uploaded_url = resp_json["data"]["url"]
+            validate_image_url(uploaded_url)
         
         except Exception as imgbb_error:
             logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
@@ -444,7 +445,6 @@ Requirements:
                     os.remove(temp_path)
 
         
-        validate_image_url(uploaded_url)
         logger.info(f"Image uploaded successfully to {uploaded_url}")
 
         if not task_future.done():
@@ -785,6 +785,7 @@ Edit the provided image according to this instruction: {prompt}
                     raise ImageUploadError("ImgBB response missing URL field")
 
                 uploaded_url = resp_json["data"]["url"]
+                validate_image_url(uploaded_url)
 
             except Exception as imgbb_error:
                 logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
@@ -816,7 +817,7 @@ Edit the provided image according to this instruction: {prompt}
                         os.remove(temp_path)
 
             
-            validate_image_url(uploaded_url)
+            
 
             logger.info(f"Edited image uploaded successfully to {uploaded_url}")
             if not task_future.done():
