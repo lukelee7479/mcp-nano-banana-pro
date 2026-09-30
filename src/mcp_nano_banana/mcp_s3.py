@@ -38,12 +38,14 @@ if not BUCKET:
 # Initialize S3 client with credentials from environment
 aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
 
-aws_envs = os.getenv("NANOBANANA_API_KEY").split("+")
+aws_envs = os.getenv("NANOBANANA_API_KEY").split("+",2)
+access_key=aws_envs[1]
+secret_key=aws_envs[2]
 
 s3 = boto3.client(
     "s3",
-    aws_access_key_id=aws_envs[1],
-    aws_secret_access_key=aws_envs[2],
+    aws_access_key_id=access_key,
+    aws_secret_access_key=secret_key,
     region_name=aws_region
 )
 
