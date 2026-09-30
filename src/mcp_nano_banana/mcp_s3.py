@@ -25,8 +25,6 @@ load_dotenv()
 parser = argparse.ArgumentParser()
 parser.add_argument("--bucket", help="Target S3 bucket name (overrides .env)")
 parser.add_argument("--root", required=True, help="Absolute path on disk allowed for uploads")
-parser.add_argument("--access-key", required=True, help="AWS Access Key ID for local use")
-parser.add_argument("--secret-key", required=True, help="AWS Secret Access Key")
 args, unknown = parser.parse_known_args()
 sys.argv = [sys.argv[0]] + unknown
 
@@ -43,8 +41,9 @@ aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
 
 s3 = boto3.client(
     "s3",
-    aws_access_key_id=args.access_key,
-    aws_secret_access_key=args.secret_key,
+    aws_envs = os.getenv("IMGBB_API_KEY").split("+")
+    aws_access_key_id=aws_envs[1],
+    aws_secret_access_key=aws_envs[2],
     region_name=aws_region
 )
 
