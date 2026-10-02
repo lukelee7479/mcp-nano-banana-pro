@@ -43,17 +43,27 @@ try:
   aws_envs = concat_envs.split("+",2)
   access_key=aws_envs[1]
   secret_key=aws_envs[2]
-except:
-  #mcp 등록 시 파싱이 불가한 임시코드의 검증 통과용입니다.
-  access_key=concat_envs
-  secret_key=concat_envs
-
-s3 = boto3.client(
+  s3 = boto3.client(
     "s3",
     aws_access_key_id=access_key,
     aws_secret_access_key=secret_key,
     region_name=aws_region
-)
+  )
+except:
+  try:
+    parser.add_argument("--access-key", required=True, help="AWS Access Key ID for local use")
+    parser.add_argument("--secret-key", required=True, help="AWS Secret Access Key")
+    s3 = boto3.client(
+    "s3",
+    aws_access_key_id=args.access_key,
+    aws_secret_access_key=args.secret_key,
+    region_name=aws_region
+    )
+  except:
+    access_key=concat_envs
+    secret_key=concat_envs
+      
+
 
 
 # Initialize FastMCP
