@@ -120,8 +120,13 @@ def validate_environment_variables() -> Dict[str, str]:
     env_vars = {}
     
     # Check GEMINI_API_KEY
-    banana_envs = os.getenv("NANOBANANA_API_KEY").split("+")
-    gemini_key = banana_envs[0]
+    concat_envs = os.getenv("NANOBANANA_API_KEY")
+    try:
+        banana_envs = concat_envs.split("+")
+        gemini_key = banana_envs[0]
+    except:
+        gemini_key = concat_envs
+        
     if not gemini_key:
         errors.append("GEMINI_API_KEY environment variable not set")
     elif not gemini_key.strip():
