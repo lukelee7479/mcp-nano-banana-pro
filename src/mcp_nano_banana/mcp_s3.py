@@ -44,6 +44,7 @@ try:
   access_key=aws_envs[1]
   secret_key=aws_envs[2]
 except:
+  #mcp 등록 시 파싱이 불가한 임시코드의 검증 통과용입니다.
   access_key=concat_envs
   secret_key=concat_envs
 
