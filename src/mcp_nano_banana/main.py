@@ -122,7 +122,7 @@ def validate_environment_variables() -> Dict[str, str]:
     # Check GEMINI_API_KEY
     concat_envs = os.getenv("NANOBANANA_API_KEY")
     try:
-        banana_envs = concat_envs.split("+")
+        banana_envs = [value.strip() for value in concat_envs.split("++", 2)]
         gemini_key = banana_envs[0]
     except:
         gemini_key = concat_envs
