@@ -40,7 +40,7 @@ if not BUCKET:
     raise ValueError("S3 bucket name must be provided via --bucket argument or S3_BUCKET_NAME in .env file")
 
 # Initialize S3 client with credentials from environment
-aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-southeast-2")
+aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
 
 concat_envs = os.getenv("NANOBANANA_API_KEY")
 try:
@@ -53,6 +53,7 @@ except:
     access_key=args.access_key
     secret_key=args.secret_key
     BUCKET = args.sub_bucket
+    aws_region = "ap-southeast-2"
   except:
     access_key="garbage_topass_validation"
     secret_key="garbage_topass_validation"
@@ -119,12 +120,12 @@ def safe_join(root: str, user_path: str) -> str:
     return abs_path
 
 
-def generate_presigned_url(key: str, expires_in: int) -> str:
+def generate_presigned_url(key: str, expires_in: int, mime_type: str = "application/octet-stream") -> str:
     """Generate a presigned URL for the uploaded file"""
     try:
         return s3.generate_presigned_url(
             ClientMethod="get_object",
-            Params={"Bucket": BUCKET, "Key": key},
+            Params={"Bucket": BUCKET, "Key": key, "ResponseContentType": mime_type, "ResponseContentDisposition": "inline"},
             ExpiresIn=expires_in,
         )
     except ClientError as e:
@@ -145,7 +146,7 @@ async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Cont
         # For files larger than 100MB, use multipart upload with progress
         if file_size > 100 * 1024 * 1024:  # 100MB
             # Initialize multipart upload
-            response = s3.create_multipart_upload(Bucket=bucket, Key=key, ContentType=mime_type)
+            response = s3.create_multipart_upload(Bucket=bucket, Key=key, ContentType=mime_type, ContentDisposition="inline")
             upload_id = response['UploadId']
             
             parts = []
@@ -189,7 +190,7 @@ async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Cont
         else:
             # For smaller files, use simple upload with progress checkpoints
             await ctx.report_progress(progress=25, total=100)
-            s3.upload_file(local_path, bucket, key, ExtraArgs={"ContentType": mime_type})
+            s3.upload_file(local_path, bucket, key, ExtraArgs={"ContentType": mime_type, "ContentDisposition": "inline"})
             await ctx.report_progress(progress=90, total=100)
     
     except ClientError as e:
@@ -255,15 +256,16 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
         raise ValueError(f"Failed to upload file: {e}")
     
     # Generate presigned URL
-    public_url = generate_public_url(s3_key)
+    presigned_url = generate_presigned_url(
+    s3_key,
+    expires_in=expires_in,
+    mime_type=mime_type
+    )
     
-    # Determine MIME type
-    mime_type = mimetypes.guess_type(full_local_path)[0] or "application/octet-stream"
-    
-    await ctx.info(f"Upload completed successfully.Public URL Generated.")
+    await ctx.info(f"Upload completed successfully.Presigned URL Generated.")
     
     return UploadResponse(
-        url=public_url,
+        url=presigned_url,
         size=file_size,
         mime_type=mime_type,
         s3_key=s3_key
