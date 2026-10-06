@@ -51,8 +51,8 @@ except:
     access_key=args.access_key
     secret_key=args.secret_key
   except:
-    access_key=concat_envs
-    secret_key=concat_envs
+    access_key="garbage_topass_validation"
+    secret_key="garbage_topass_validation"
       
 
 s3 = boto3.client(
