@@ -376,17 +376,45 @@ Requirements:
         if not image_data_base64:
             raise ImageGenerationError("No image data found in response")
 
-        upload_url = "https://api.imgbb.com/1/upload"
-        
-        payload = {
-            "key": env_vars['IMGBB_API_KEY'],
-            "image": image_data_base64,
-            "name": f"{uuid.uuid4()}"
-        }
-
-        uploaded_url = None
-
         try:
+            logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
+
+            image_bytes = base64.b64decode(image_data_base64)
+
+            ext = "jpg"
+            if image_bytes.startswith(b"\x89PNG"):
+                ext = "png"
+            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                ext = "webp"
+       
+
+            
+            temp_filename = f"{uuid.uuid4()}.{ext}"
+            temp_path = os.path.join(ROOT, temp_filename)
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(base64.b64decode(image_data_base64))
+                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
+                uploaded_url = s3_response.url
+                logger.info("s3 upload done")
+            except Exception as s3_error:
+                raise ImageUploadError(f"upload both failed:{s3_error}")
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            
+
+        except Exception as s3_error:
+            upload_url = "https://api.imgbb.com/1/upload"
+        
+            payload = {
+                "key": env_vars['IMGBB_API_KEY'],
+                "image": image_data_base64,
+                "name": f"{uuid.uuid4()}"
+            }
+
+            uploaded_url = None
+            
             image_size = (len(image_data_base64) * 3) // 4
             if image_size > 32 * 1024 * 1024:
                 raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
@@ -424,32 +452,7 @@ Requirements:
             uploaded_url = resp_json["data"]["url"]
             validate_image_url(uploaded_url)
         
-        except Exception as imgbb_error:
-            logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
-
-            image_bytes = base64.b64decode(image_data_base64)
-
-            ext = "jpg"
-            if image_bytes.startswith(b"\x89PNG"):
-                ext = "png"
-            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
-                ext = "webp"
-       
-
             
-            temp_filename = f"{uuid.uuid4()}.{ext}"
-            temp_path = os.path.join(ROOT, temp_filename)
-            try:
-                with open(temp_path, "wb") as f:
-                    f.write(base64.b64decode(image_data_base64))
-                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
-                uploaded_url = s3_response.url
-                logger.info("s3 upload done")
-            except Exception as s3_error:
-                raise ImageUploadError(f"upload both failed:{s3_error}")
-            finally:
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
 
         
         logger.info(f"Image uploaded successfully to {uploaded_url}")
