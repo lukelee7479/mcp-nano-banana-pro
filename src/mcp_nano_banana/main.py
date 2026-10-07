@@ -397,7 +397,7 @@ Requirements:
             try:
                 with open(temp_path, "wb") as f:
                     f.write(image_bytes)
-                s3_response = await upload_file(local_path=temp_path, ctx=ctx)
+                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
                 logger.info("s3 upload done")
                 
@@ -458,7 +458,9 @@ Requirements:
                 validate_image_url(uploaded_url)
             
             except Exception as imgbb_error:
-                raise ImageUploadError(f"upload both failed:{imgbb_error}")        
+                raise ImageUploadError(f"upload both failed"
+                                       f"S3: {s3_error};"
+                                       f"ImgBB: {imgbb_error}")          
             
 
         
@@ -777,7 +779,7 @@ Edit the provided image according to this instruction: {prompt}
                 with open(temp_path, "wb") as f:
                     f.write(image_bytes)
 
-                s3_response = await upload_file(local_path=temp_path, ctx=ctx)
+                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
                 logger.info("S3 upload done")
 
@@ -843,7 +845,9 @@ Edit the provided image according to this instruction: {prompt}
                 logger.error(f"Image upload error: {e}")
                 raise e
             except Exception as imgbb_error:
-                raise ImageUploadError(f"upload both failed:{imgbb_error}")                          
+                raise ImageUploadError(f"upload both failed"
+                                       f"S3: {s3_error};"
+                                       f"ImgBB: {imgbb_error}")                          
 
         logger.info(f"Edited image uploaded successfully to {uploaded_url}")
         if not task_future.done():
