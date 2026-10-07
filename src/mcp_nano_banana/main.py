@@ -125,7 +125,7 @@ def validate_environment_variables() -> Dict[str, str]:
         banana_envs = [value.strip() for value in concat_envs.split("++", 2)]
         gemini_key = banana_envs[0]
     except:
-        gemini_key = "garbagetopassvalidation"
+        gemini_key = concat_envs
         
     if not gemini_key:
         errors.append("GEMINI_API_KEY environment variable not set")
