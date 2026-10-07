@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--bucket", help="Target S3 bucket name (overrides .env)")
 parser.add_argument("--root", required=True, help="Absolute path on disk allowed for uploads")
 
-parser.add_argument("--sub-bucket", required=False, help="in case of error")
+#parser.add_argument("--sub-bucket", required=False, help="in case of error")
 parser.add_argument("--access-key", required=False, help="AWS Access Key ID for local use")
 parser.add_argument("--secret-key", required=False, help="AWS Secret Access Key")
 args, unknown = parser.parse_known_args()
@@ -52,7 +52,6 @@ except:
   try:
     access_key=args.access_key
     secret_key=args.secret_key
-    BUCKET = args.sub_bucket
     aws_region = "ap-southeast-2"
   except:
     access_key="garbage_topass_validation"
