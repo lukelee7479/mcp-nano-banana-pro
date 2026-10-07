@@ -376,8 +376,13 @@ Requirements:
         uploaded_url = None
 
         try:
+            image_bytes = base64.b64decode(image_data_base64, validate=True)
+        except Exception as e:
+            raise ImageGenerationError(f"Invalid image data returned by nanobanana:{e}")
+
+
+        try:
             logger.info("Trying S3 upload first")
-            image_bytes = base64.b64decode(image_data_base64)
 
             ext = "jpg"
             if image_bytes.startswith(b"\x89PNG"):
@@ -404,7 +409,7 @@ Requirements:
         except Exception as s3_error:
             logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
             if not imgbb_key:
-                raise ImageUploadError(f"IMGBB_API_KEY is not configured.")
+                raise ImageUploadError("IMGBB_API_KEY is not configured")
 
             upload_url = "https://api.imgbb.com/1/upload"
         
