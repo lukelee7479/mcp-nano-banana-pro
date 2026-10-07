@@ -737,12 +737,8 @@ Edit the provided image according to this instruction: {prompt}
             if not image_data_base64:
                 raise ImageGenerationError("No image data found in response")
 
-            '''
-            try:
-                base64.b64decode(image_data_base64, validate=True)
-            except Exception as e:
-                raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
-            '''
+            
+            
 
         except asyncio.TimeoutError:
             logger.error("Image editing timed out")
@@ -759,6 +755,40 @@ Edit the provided image according to this instruction: {prompt}
 
         # Image upload
         try:
+            image_bytes = base64.b64decode(image_data_base64, validate=True)
+        except Exception as e:
+            raise ImageGenerationError(f"Invalid base64 image data returned by nanobanana: {str(e)}")
+            
+
+        try:
+            logger.info("Trying S3 upload first")
+
+            ext = "jpg"
+            if image_bytes.startswith(b"\x89PNG"):
+                ext = "png"
+            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                ext = "webp"
+                    
+            temp_filename = f"{uuid.uuid4()}.{ext}"
+            temp_path = os.path.join(ROOT, temp_filename)
+
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(base64.b64decode(image_data_base64))
+
+                s3_response = await upload_file(local_path=temp_path, ctx=ctx)
+                uploaded_url = s3_response.url
+                logger.info("S3 upload done")
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path) 
+                    
+        except Exception as s3_error:
+            logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
+            if not imgbb_key:
+                raise ImageUploadError("IMGBB_API_KEY is not configured")
+                
             upload_url = "https://api.imgbb.com/1/upload"
 
             payload = {
@@ -774,6 +804,7 @@ Edit the provided image according to this instruction: {prompt}
                     
                 max_retries = 2
                 http_client = get_httpx_client()
+                resp = None
                 
                 for attempt in range(max_retries):
                     try:
@@ -802,55 +833,27 @@ Edit the provided image according to this instruction: {prompt}
 
                 uploaded_url = resp_json["data"]["url"]
                 validate_image_url(uploaded_url)
-
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"ImgBB HTTP error: {e}")
+                raise APIError(f"HTTP error {e.response.status_code}")
+            except ImageUploadError as e:
+                logger.error(f"Image upload error: {e}")
+                raise e
             except Exception as imgbb_error:
-                logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
+                raise ImageUploadError(f"upload both failed:{imgbb_error}")                          
 
-                image_bytes = base64.b64decode(image_data_base64)
+        logger.info(f"Edited image uploaded successfully to {uploaded_url}")
+        if not task_future.done():
+            task_future.set_result(uploaded_url)
 
-                ext = "jpg"
-                if image_bytes.startswith(b"\x89PNG"):
-                    ext = "png"
-                elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
-                    ext = "webp"
-                    
-                temp_filename = f"{uuid.uuid4()}.{ext}"
-                temp_path = os.path.join(ROOT, temp_filename)
+        return create_success_response({"url": uploaded_url})
+        edit_image_tasks.pop(cache_key, None)
 
-                try:
-                    with open(temp_path, "wb") as f:
-                        f.write(base64.b64decode(image_data_base64))
+    
 
-                    s3_response = await upload_file(local_path=temp_path, ctx=ctx)
-                    uploaded_url = s3_response.url
-                    logger.info("S3 upload done")
 
-                except Exception as s3_error:
-                    raise ImageUploadError(f"both upload failed: {s3_error}")
 
-                finally:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-
-            
-            
-
-            logger.info(f"Edited image uploaded successfully to {uploaded_url}")
-            if not task_future.done():
-                task_future.set_result(uploaded_url)
-
-            edit_image_tasks.pop(cache_key, None)
-            return create_success_response({"url": uploaded_url})
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"ImgBB HTTP error: {e}")
-            raise APIError(f"HTTP error {e.response.status_code}")
-        except ImageUploadError as e:
-            logger.error(f"Image upload error: {e}")
-            raise e
-        except Exception as e:
-            logger.exception(f"Unexpected error during image upload: {e}")
-            raise e
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
