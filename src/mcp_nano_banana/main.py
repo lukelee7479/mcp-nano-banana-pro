@@ -840,7 +840,7 @@ Edit the provided image according to this instruction: {prompt}
                 
             except httpx.HTTPStatusError as e:
                 logger.error(f"ImgBB HTTP error: {e}")
-                raise APIError(f"HTTP error {e.response.status_code}")
+                raise ImageUploadError(f"ImgBB HTTP error {e.response.status_code}")
             except ImageUploadError as e:
                 logger.error(f"Image upload error: {e}")
                 raise e
