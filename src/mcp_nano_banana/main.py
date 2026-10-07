@@ -396,7 +396,7 @@ Requirements:
             temp_path = os.path.join(ROOT, temp_filename)
             try:
                 with open(temp_path, "wb") as f:
-                    f.write(base64.b64decode(image_data_base64))
+                    f.write(image_bytes)
                 s3_response = await upload_file(local_path=temp_path, ctx=ctx)
                 uploaded_url = s3_response.url
                 logger.info("s3 upload done")
@@ -408,6 +408,7 @@ Requirements:
 
         except Exception as s3_error:
             logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
+            imgbb_key = env_vars.get("IMGBB_API_KEY")
             if not imgbb_key:
                 raise ImageUploadError("IMGBB_API_KEY is not configured")
 
@@ -774,7 +775,7 @@ Edit the provided image according to this instruction: {prompt}
 
             try:
                 with open(temp_path, "wb") as f:
-                    f.write(base64.b64decode(image_data_base64))
+                    f.write(image_bytes)
 
                 s3_response = await upload_file(local_path=temp_path, ctx=ctx)
                 uploaded_url = s3_response.url
@@ -786,6 +787,7 @@ Edit the provided image according to this instruction: {prompt}
                     
         except Exception as s3_error:
             logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
+            imgbb_key = env_vars.get("IMGBB_API_KEY")
             if not imgbb_key:
                 raise ImageUploadError("IMGBB_API_KEY is not configured")
                 
@@ -848,10 +850,6 @@ Edit the provided image according to this instruction: {prompt}
             task_future.set_result(uploaded_url)
 
         return create_success_response({"url": uploaded_url})
-        edit_image_tasks.pop(cache_key, None)
-
-    
-
 
 
 
