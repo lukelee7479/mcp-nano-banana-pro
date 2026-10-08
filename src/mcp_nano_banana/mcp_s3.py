@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--bucket", help="Target S3 bucket name (overrides .env)")
 parser.add_argument("--root", required=True, help="Absolute path on disk allowed for uploads")
 
-#parser.add_argument("--sub-bucket", required=False, help="in case of error")
+parser.add_argument("--cloudfront", required=False, help="cloudfront domain")
 parser.add_argument("--access-key", required=False, help="AWS Access Key ID for local use")
 parser.add_argument("--secret-key", required=False, help="AWS Secret Access Key")
 args, unknown = parser.parse_known_args()
@@ -132,6 +132,10 @@ def generate_presigned_url(key: str, expires_in: int, mime_type: str = "applicat
 
 def generate_public_url(key: str) -> str:
     return f"https://{BUCKET}.s3.{aws_region}.amazonaws.com/{key}"
+
+def generate_cloudfront_url(key: str) -> str:
+    CLOUDFRONT_DOMAIN = args.cloudfront
+    return f"https://{CLOUDFRONT_DOMAIN}/{key}"
 
 
 async def upload_with_progress(local_path: str, bucket: str, key: str, ctx: Context, mime_type: str = "application/octet-stream"):
@@ -255,13 +259,17 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
         raise ValueError(f"Failed to upload file: {e}")
     
     # Generate presigned URL
-    presigned_url = generate_presigned_url(
-    s3_key,
-    expires_in=expires_in,
-    mime_type=mime_type
-    )
-    
-    await ctx.info(f"Upload completed successfully.Presigned URL Generated.")
+    try:
+      presigned_url = generate_cloudfront_url(s3_key)
+      await ctx.info(f"Upload completed successfully.cloudfront URL Generated.")
+      
+    except:
+      presigned_url = generate_presigned_url(
+      s3_key,
+      expires_in=expires_in,
+      mime_type=mime_type
+      )
+      await ctx.info(f"Upload completed successfully.Presigned URL Generated.")
     
     return UploadResponse(
         url=presigned_url,
