@@ -120,7 +120,13 @@ def validate_environment_variables() -> Dict[str, str]:
     env_vars = {}
     
     # Check GEMINI_API_KEY
-    gemini_key = os.getenv("NANOBANANA_API_KEY")
+    concat_envs = os.getenv("NANOBANANA_API_KEY")
+    try:
+        banana_envs = [value.strip() for value in concat_envs.split("++", 2)]
+        gemini_key = banana_envs[0]
+    except:
+        gemini_key = concat_envs
+        
     if not gemini_key:
         errors.append("GEMINI_API_KEY environment variable not set")
     elif not gemini_key.strip():
@@ -130,12 +136,9 @@ def validate_environment_variables() -> Dict[str, str]:
     
     # Check IMGBB_API_KEY
     imgbb_key = os.getenv("IMGBB_API_KEY")
-    if not imgbb_key:
-        errors.append("IMGBB_API_KEY environment variable not set")
-    elif not imgbb_key.strip():
-        errors.append("IMGBB_API_KEY environment variable is empty")
-    else:
-        env_vars['IMGBB_API_KEY'] = imgbb_key
+    if imgbb_key and imgbb_key.strip():
+        env_vars["IMGBB_API_KEY"] = imgbb_key.strip()
+
     
     if errors:
         raise ValidationError(f"Environment validation failed: {'; '.join(errors)}")
@@ -370,58 +373,16 @@ Requirements:
         if not image_data_base64:
             raise ImageGenerationError("No image data found in response")
 
-        upload_url = "https://api.imgbb.com/1/upload"
-        
-        payload = {
-            "key": env_vars['IMGBB_API_KEY'],
-            "image": image_data_base64,
-            "name": f"{uuid.uuid4()}"
-        }
-
         uploaded_url = None
 
         try:
-            image_size = (len(image_data_base64) * 3) // 4
-            if image_size > 32 * 1024 * 1024:
-                raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
+            image_bytes = base64.b64decode(image_data_base64, validate=True)
+        except Exception as e:
+            raise ImageGenerationError(f"Invalid image data returned by nanobanana:{e}")
 
-            max_retries = 2
-            http_client = get_httpx_client()
-            resp = None
-        
-            for attempt in range(max_retries):
-                try:
-                    resp = await http_client.post(upload_url, data=payload, timeout=30.0)
-                    resp.raise_for_status()
-                    break
-                except httpx.TimeoutException:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError("Upload timed out after multiple attempts")
-                    logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
-                    await asyncio.sleep(2 ** attempt)
-                except httpx.RequestError as e:
-                    if attempt == max_retries - 1:
-                        raise ImageUploadError(f"Connection error during upload: {str(e)}")
-                    logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
-                    await asyncio.sleep(2 ** attempt)
 
-            resp_json = resp.json()
-
-            if "data" not in resp_json:
-                error_msg_upload = resp_json.get("error", {}).get("message", "Unknown error")
-                raise ImageUploadError(f"ImgBB upload failed: {error_msg_upload}")
-
-            if "url" not in resp_json["data"]:
-                raise ImageUploadError("ImgBB response missing URL field")
-                
-
-            uploaded_url = resp_json["data"]["url"]
-            validate_image_url(uploaded_url)
-        
-        except Exception as imgbb_error:
-            logger.warning(f"ImgBB failed, try S3 upload. reason: {imgbb_error}")
-
-            image_bytes = base64.b64decode(image_data_base64)
+        try:
+            logger.info("Trying S3 upload first")
 
             ext = "jpg"
             if image_bytes.startswith(b"\x89PNG"):
@@ -435,15 +396,72 @@ Requirements:
             temp_path = os.path.join(ROOT, temp_filename)
             try:
                 with open(temp_path, "wb") as f:
-                    f.write(base64.b64decode(image_data_base64))
+                    f.write(image_bytes)
                 s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
                 logger.info("s3 upload done")
-            except Exception as s3_error:
-                raise ImageUploadError(f"upload both failed:{s3_error}")
+                
             finally:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
+            
+
+        except Exception as s3_error:
+            logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
+            imgbb_key = env_vars.get("IMGBB_API_KEY")
+            if not imgbb_key:
+                raise ImageUploadError("IMGBB_API_KEY is not configured")
+
+            upload_url = "https://api.imgbb.com/1/upload"
+        
+            payload = {
+                "key": env_vars['IMGBB_API_KEY'],
+                "image": image_data_base64,
+                "name": f"{uuid.uuid4()}"
+            }
+            try:
+                image_size = (len(image_data_base64) * 3) // 4
+                if image_size > 32 * 1024 * 1024:
+                    raise ImageUploadError(f"Image too large: {image_size} bytes (max 32MB)")
+
+                max_retries = 2
+                http_client = get_httpx_client()
+                resp = None
+        
+                for attempt in range(max_retries):
+                    try:
+                        resp = await http_client.post(upload_url, data=payload, timeout=30.0)
+                        resp.raise_for_status()
+                        break
+                    except httpx.TimeoutException:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError("Upload timed out after multiple attempts")
+                        logger.warning(f"Upload attempt {attempt + 1} timed out, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    except httpx.RequestError as e:
+                        if attempt == max_retries - 1:
+                            raise ImageUploadError(f"Connection error during upload: {str(e)}")
+                        logger.warning(f"Connection error on attempt {attempt + 1}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+
+                resp_json = resp.json()
+
+                if "data" not in resp_json:
+                    error_msg_upload = resp_json.get("error", {}).get("message", "Unknown error")
+                    raise ImageUploadError(f"ImgBB upload failed: {error_msg_upload}")
+
+                if "url" not in resp_json["data"]:
+                    raise ImageUploadError("ImgBB response missing URL field")
+                
+
+                uploaded_url = resp_json["data"]["url"]
+                validate_image_url(uploaded_url)
+            
+            except Exception as imgbb_error:
+                raise ImageUploadError(f"upload both failed"
+                                       f"S3: {s3_error};"
+                                       f"ImgBB: {imgbb_error}")          
+            
 
         
         logger.info(f"Image uploaded successfully to {uploaded_url}")
@@ -722,12 +740,8 @@ Edit the provided image according to this instruction: {prompt}
             if not image_data_base64:
                 raise ImageGenerationError("No image data found in response")
 
-            '''
-            try:
-                base64.b64decode(image_data_base64, validate=True)
-            except Exception as e:
-                raise ImageGenerationError(f"Invalid base64 image data: {str(e)}")
-            '''
+            
+            
 
         except asyncio.TimeoutError:
             logger.error("Image editing timed out")
@@ -744,6 +758,41 @@ Edit the provided image according to this instruction: {prompt}
 
         # Image upload
         try:
+            image_bytes = base64.b64decode(image_data_base64, validate=True)
+        except Exception as e:
+            raise ImageGenerationError(f"Invalid base64 image data returned by nanobanana: {str(e)}")
+            
+
+        try:
+            logger.info("Trying S3 upload first")
+
+            ext = "jpg"
+            if image_bytes.startswith(b"\x89PNG"):
+                ext = "png"
+            elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+                ext = "webp"
+                    
+            temp_filename = f"{uuid.uuid4()}.{ext}"
+            temp_path = os.path.join(ROOT, temp_filename)
+
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(image_bytes)
+
+                s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
+                uploaded_url = s3_response.url
+                logger.info("S3 upload done")
+
+            finally:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path) 
+                    
+        except Exception as s3_error:
+            logger.warning(f"s3 failed, try imgbb upload. reason: {s3_error}")
+            imgbb_key = env_vars.get("IMGBB_API_KEY")
+            if not imgbb_key:
+                raise ImageUploadError("IMGBB_API_KEY is not configured")
+                
             upload_url = "https://api.imgbb.com/1/upload"
 
             payload = {
@@ -759,6 +808,7 @@ Edit the provided image according to this instruction: {prompt}
                     
                 max_retries = 2
                 http_client = get_httpx_client()
+                resp = None
                 
                 for attempt in range(max_retries):
                     try:
@@ -787,55 +837,25 @@ Edit the provided image according to this instruction: {prompt}
 
                 uploaded_url = resp_json["data"]["url"]
                 validate_image_url(uploaded_url)
-
+                
+            except httpx.HTTPStatusError as e:
+                logger.error(f"ImgBB HTTP error: {e}")
+                raise ImageUploadError(f"ImgBB HTTP error {e.response.status_code}")
+            except ImageUploadError as e:
+                logger.error(f"Image upload error: {e}")
+                raise e
             except Exception as imgbb_error:
-                logger.warning(f"ImgBB failed, try S3. reason : {imgbb_error}")
+                raise ImageUploadError(f"upload both failed"
+                                       f"S3: {s3_error};"
+                                       f"ImgBB: {imgbb_error}")                          
 
-                image_bytes = base64.b64decode(image_data_base64)
+        logger.info(f"Edited image uploaded successfully to {uploaded_url}")
+        if not task_future.done():
+            task_future.set_result(uploaded_url)
 
-                ext = "jpg"
-                if image_bytes.startswith(b"\x89PNG"):
-                    ext = "png"
-                elif image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
-                    ext = "webp"
-                    
-                temp_filename = f"{uuid.uuid4()}.{ext}"
-                temp_path = os.path.join(ROOT, temp_filename)
+        return create_success_response({"url": uploaded_url})
 
-                try:
-                    with open(temp_path, "wb") as f:
-                        f.write(base64.b64decode(image_data_base64))
 
-                    s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
-                    uploaded_url = s3_response.url
-                    logger.info("S3 upload done")
-
-                except Exception as s3_error:
-                    raise ImageUploadError(f"both upload failed: {s3_error}")
-
-                finally:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-
-            
-            
-
-            logger.info(f"Edited image uploaded successfully to {uploaded_url}")
-            if not task_future.done():
-                task_future.set_result(uploaded_url)
-
-            edit_image_tasks.pop(cache_key, None)
-            return create_success_response({"url": uploaded_url})
-
-        except httpx.HTTPStatusError as e:
-            logger.error(f"ImgBB HTTP error: {e}")
-            raise APIError(f"HTTP error {e.response.status_code}")
-        except ImageUploadError as e:
-            logger.error(f"Image upload error: {e}")
-            raise e
-        except Exception as e:
-            logger.exception(f"Unexpected error during image upload: {e}")
-            raise e
 
     except ValidationError as e:
         logger.error(f"Validation error: {e}")
