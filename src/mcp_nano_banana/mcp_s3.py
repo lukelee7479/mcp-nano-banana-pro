@@ -119,13 +119,13 @@ def safe_join(root: str, user_path: str) -> str:
     return abs_path
 
 
-def generate_presigned_url(key: str, expires_in: int, mime_type: str = "application/octet-stream") -> str:
+def generate_presigned_url(key: str, expires_in: int) -> str:
     """Generate a presigned URL for the uploaded file"""
     try:
         return s3.generate_presigned_url(
             ClientMethod="get_object",
-            Params={"Bucket": BUCKET, "Key": key, "ResponseContentType": mime_type, "ResponseContentDisposition": "inline"},
-            ExpiresIn=expires_in,
+            Params={"Bucket": BUCKET, "Key": key},
+            ExpiresIn=expires_in
         )
     except ClientError as e:
         raise ValueError(f"Failed generating presigned URL: {e}")
@@ -266,8 +266,7 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
     else:
       upload_url = generate_presigned_url(
       s3_key,
-      expires_in=expires_in,
-      mime_type=mime_type
+      expires_in=expires_in
       )
       await ctx.info(f"Upload completed successfully.Presigned URL Generated.")
     
