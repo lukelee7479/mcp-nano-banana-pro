@@ -259,12 +259,12 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
         raise ValueError(f"Failed to upload file: {e}")
     
     # Generate presigned URL
-    try:
-      presigned_url = generate_cloudfront_url(s3_key)
+    if args.cloudfront:
+      upload_url = generate_cloudfront_url(s3_key)
       await ctx.info(f"Upload completed successfully.cloudfront URL Generated.")
       
-    except:
-      presigned_url = generate_presigned_url(
+    else:
+      upload_url = generate_presigned_url(
       s3_key,
       expires_in=expires_in,
       mime_type=mime_type
@@ -272,7 +272,7 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
       await ctx.info(f"Upload completed successfully.Presigned URL Generated.")
     
     return UploadResponse(
-        url=presigned_url,
+        url=upload_url,
         size=file_size,
         mime_type=mime_type,
         s3_key=s3_key
