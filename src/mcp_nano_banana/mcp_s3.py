@@ -244,14 +244,30 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
             raise ValueError(f"File '{s3_key}' already exists in S3. Use force_overwrite=true to replace it, or rename your local file.")
             
         except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
+            error = e.response.get("Error", {})
+            metadata = e.response.get("ResponseMetadata", {})
+            error_code = error.get("Code")
+          
+            if error_code in ("404", "NoSuchKey"):
+                pass
                 # File doesn't exist, safe to upload
                 await ctx.info(f"S3 key '{s3_key}' is available, proceeding with upload")
             else:
+                request_id = metadata.get("RequestId")
+                http_status = metadata.get("HTTPStatusCode")
                 # Some other error (permissions, etc.)
-                await ctx.error(f"Failed to check if file exists: {e}")
-                raise ValueError(f"Failed to check if file exists: {e}")
+              
+                await ctx.warning(
+                    "S3 HeadObject failed: "
+                    f"status={http_status}, "
+                    f"request_id={request_id}, "
+                    f"key={s3_key}"
+                )
+                raise ValueError(f"Failed to check if file exists: "
+                                 f"status={http_status}, "
+                                 f"request_id={request_id}, "
+                                 f"error={error}"
+                                )
     else:
         await ctx.info(f"Force overwrite enabled, will replace existing file if present")
 
