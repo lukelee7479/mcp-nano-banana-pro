@@ -47,10 +47,12 @@ try:
   aws_envs = [value.strip() for value in concat_envs.split("++",2)]
   access_key=aws_envs[1]
   secret_key=aws_envs[2]
+  """
   if args.access_key and args.secret_key:
     access_key=args.access_key
     secret_key=args.secret_key
     aws_region = "ap-southeast-2"
+  """
 
 except:
   try:
