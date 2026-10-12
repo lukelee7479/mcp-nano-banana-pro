@@ -6,6 +6,7 @@ description = "Um servidor MCP que gera imagens usando a Google Gemini API."
 readme = "README.md"
 dependencies = [
     "mcp[cli]==1.13",
+    "pydantic>=2,<2.14",
     "google-genai>=1,<2",
     "python-dotenv==1.0.1",
     "pillow==11.3.0",
