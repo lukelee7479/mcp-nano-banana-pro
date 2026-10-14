@@ -23,8 +23,8 @@ load_dotenv()
 
 # Parse CLI arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--bucket", help="Target S3 bucket name (overrides .env)")
-parser.add_argument("--root", required=True, help="Absolute path on disk allowed for uploads")
+parser.add_argument("--bucket", required=False, help="Target S3 bucket name (overrides .env)")
+parser.add_argument("--root", required=False, help="Absolute path on disk allowed for uploads")
 
 parser.add_argument("--cloudfront", required=False, help="cloudfront domain")
 parser.add_argument("--access-key", required=False, help="AWS Access Key ID for local use")
@@ -32,12 +32,15 @@ parser.add_argument("--secret-key", required=False, help="AWS Secret Access Key"
 args, unknown = parser.parse_known_args()
 sys.argv = [sys.argv[0]] + unknown
 
-ROOT = os.path.abspath(os.path.expanduser(args.root))
+ROOT = (
+    os.path.abspath(os.path.expanduser(args.root))
+    if args.root
+    else None
+)
 
 # Get bucket name from CLI args or environment
 BUCKET = args.bucket or os.getenv("S3_BUCKET_NAME")
-if not BUCKET:
-    raise ValueError("S3 bucket name must be provided via --bucket argument or S3_BUCKET_NAME in .env file")
+
 
 # Initialize S3 client with credentials from environment
 aws_region = os.getenv("AWS_DEFAULT_REGION", "ap-northeast-2")
@@ -217,7 +220,12 @@ async def upload_file(local_path: str, ctx: Context, expires_in: int = 86400, fo
     By default, preserves original filename. If file exists in S3, upload is aborted unless force_overwrite=True.
     When force_overwrite=True, existing files are replaced (creates new S3 version if versioning enabled).
     """
-    
+    if not BUCKET:
+      raise ValueError("S3 bucket is not configured")
+    if not ROOT:
+      raise ValueError("S3 root path is not configured")
+
+  
     # Log the upload start
     await ctx.info(f"Starting upload of {local_path}")
     
