@@ -66,8 +66,10 @@ except:
     access_key="garbage_topass_validation"
     secret_key="garbage_topass_validation"
       
+s3 = None
 
-s3 = boto3.client(
+if access_key and secret_key:
+  s3 = boto3.client(
     "s3",
     aws_access_key_id=access_key,
     aws_secret_access_key=secret_key,
