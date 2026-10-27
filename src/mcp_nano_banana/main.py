@@ -315,6 +315,9 @@ Requirements:
                 image_size='1K',
                 aspect_ratio='16:9',
             ),
+            "thinking_config": types.ThinkingConfig(
+                thinking_level="high"
+            ),
         }
 
         enable_grounding = False
