@@ -299,8 +299,6 @@ async def generate_image(
         enhanced_prompt = f"""
 Requirements:
 
-Requirements:
-
 [TEXT RENDERING]
 1. When the product brief contains important product names, model names, brand names, labels, slogans, feature names, key specifications, or other meaningful text, include the most relevant text in the final image rather than omitting it.
 2. Place text wherever it best supports readability and composition: on the product or packaging when appropriate, or in surrounding whitespace, title areas, captions, callouts, or information panels when that is more natural.
