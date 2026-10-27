@@ -394,16 +394,26 @@ Requirements:
             
             temp_filename = f"{uuid.uuid4()}.{ext}"
             temp_path = os.path.join(ROOT, temp_filename)
+            log_filename = f"prompt{uuid.uuid4()}.txt"
+            log_path = os.path.join(ROOT, log_filename)
+            
             try:
                 with open(temp_path, "wb") as f:
                     f.write(image_bytes)
                 s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
+
+                with open(temp_path, "w", encoding="utf-8") as g:
+                    g.write(enhanced_prompt)
+                await upload_file(local_path=log_filename, ctx=ctx)
+                
                 logger.info("s3 upload done")
                 
             finally:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
+                if os.path.exists(log_path):
+                    os.remove(log_path)
             
 
         except Exception as s3_error:
