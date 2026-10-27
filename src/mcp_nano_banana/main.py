@@ -34,7 +34,7 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image"]
+DEFAULT_MODEL = ["gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-nano-banana-2.1"]
 
 
 DEFAULT_ENABLE_GROUNDING = False
@@ -304,13 +304,14 @@ Requirements:
 2. Place text wherever it best supports readability and composition: on the product or packaging when appropriate, or in surrounding whitespace, title areas, captions, callouts, or information panels when that is more natural.
 3. Do not omit all text merely to avoid text-rendering difficulty. If the source material contains meaningful text, include relevant text whenever visually appropriate.
 4. Prioritize the product name, model name, brand name, key label, major feature, and most important product message when there is too much text to reproduce everything clearly.
-5. Render all visible text in Korean unless the user explicitly requests another language.
-6. Reproduce all user-provided text exactly as written, especially text enclosed in quotation marks.
-7. Preserve Korean text verbatim, including correct Hangul syllable blocks, consonants, vowels, spacing, punctuation, numbers, and symbols.
-8. Do not translate, romanize, paraphrase, abbreviate, rewrite, omit, duplicate, merge, split, or substitute requested text.
-9. Render text clearly, sharply, consistently, and legibly, without malformed, warped, melted, duplicated, or nonsensical characters.
-10. Integrate text naturally into the overall composition and maintain clear visual hierarchy, spacing, contrast, and alignment.
-11. If reproducing every text element would reduce legibility, render fewer but more important text elements accurately rather than removing text entirely.
+5. Render each text element only once unless repetition is explicitly requested or naturally required by the product design. Do not duplicate the same product name, slogan, label, caption, or message in multiple locations unnecessarily.
+6. Render all visible text in Korean unless the user explicitly requests another language.
+7. Reproduce all user-provided text exactly as written, especially text enclosed in quotation marks.
+8. Preserve Korean text verbatim, including correct Hangul syllable blocks, consonants, vowels, spacing, punctuation, numbers, and symbols.
+9. Do not translate, romanize, paraphrase, abbreviate, rewrite, omit, duplicate, merge, split, or substitute requested text.
+10. Render text clearly, sharply, consistently, and legibly, without malformed, warped, melted, duplicated, or nonsensical characters.
+11. Integrate text naturally into the overall composition and maintain clear visual hierarchy, spacing, contrast, and alignment.
+12. If reproducing every text element would reduce legibility, render fewer but more important text elements accurately rather than removing text entirely.
 
 [PRODUCT ACCURACY]
 1. Accurately reproduce the product specified by the user, including its product name, overall shape, proportions, dimensions, structure, color, materials, surface finish, packaging, labels, controls, openings, buttons, ports, and other distinctive features.
@@ -711,8 +712,8 @@ Edit the provided image according to this instruction: {prompt}
 
 """.strip()
 
-        if len(enhanced_prompt) > 950:
-            enhanced_prompt = enhanced_prompt[:950]
+        if len(enhanced_prompt) > 3000:
+            enhanced_prompt = enhanced_prompt[:3000]
 
         # Image editing with specific error handling
         try:
@@ -735,8 +736,6 @@ Edit the provided image according to this instruction: {prompt}
 
             for attempt in range(max_gemini_retries):
                 try:
-                    if attempt>0:
-                        enhanced_prompt = "Render every text in English.\n" + enhanced_prompt[:500]
                     response = await asyncio.wait_for(
                         client.aio.models.generate_content(
                             model=DEFAULT_MODEL[attempt],
