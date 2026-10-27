@@ -34,7 +34,7 @@ def get_task_lock():
         _task_lock = asyncio.Lock()
     return _task_lock
 
-DEFAULT_MODEL = ["gemini-nano-banana-2.1", "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image" ]
+DEFAULT_MODEL = ["gemini-3.1-flash-lite-image", "gemini-3.1-flash-image", "gemini-nano-banana-2.1"]
 
 
 DEFAULT_ENABLE_GROUNDING = False
@@ -298,7 +298,7 @@ async def generate_image(
 
         enhanced_prompt = f"""
 Requirements:
-
+- 모든 문구는 한국어로 작성한다.
 - 생성되는 이미지는 전체적으로 자연스럽고 완성도 높은 시각적 결과물을 목표로 해야 한다.
 - 이미지의 주요 피사체와 배경 요소는 사용자의 요청 내용을 충실히 반영해야 하며, 사용자가 명시하지 않은 불필요한 사물이나 인물을 임의로 추가하지 않는다.
 - 이미지 안에 등장하는 모든 요소는 장면의 맥락과 자연스럽게 연결되어야 하며, 서로 겹치거나 비정상적으로 잘려 보이거나 구조적으로 불가능한 형태가 나타나지 않도록 한다.
