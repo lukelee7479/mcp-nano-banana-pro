@@ -406,7 +406,7 @@ Requirements:
                 s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
 
-                with open(temp_path, "w", encoding="utf-8") as g:
+                with open(log_path, "w", encoding="utf-8") as g:
                     g.write(enhanced_prompt)
                 await upload_file(local_path=log_filename, ctx=ctx)
                 
