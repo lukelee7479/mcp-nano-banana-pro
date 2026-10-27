@@ -300,7 +300,7 @@ async def generate_image(
 Requirements:
 - Prioritize crisp, legible, clean and consistent text rendering.
 - Avoid broken, warped, melted, duplicated, or nonsensical letters.
-- Do not misspell or distort the letters
+- Preserve Korean text verbatim, including every Hangul syllable block exactly as provided.
 
 {prompt}
 """.strip()
@@ -324,8 +324,8 @@ Requirements:
 
         for attempt in range(max_gemini_retries):
             try:
-                if attempt>0:
-                    enhanced_prompt = "Render every text in English.\n" + enhanced_prompt[:500]
+                if attempt==max_gemini_retries-1:
+                    enhanced_prompt = "Render every text in English.\n" + prompt[:700]
                 response = await asyncio.wait_for(
                     client.aio.models.generate_content(
                         model=DEFAULT_MODEL[attempt],
