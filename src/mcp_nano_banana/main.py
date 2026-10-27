@@ -299,26 +299,43 @@ async def generate_image(
         enhanced_prompt = f"""
 Requirements:
 
+Requirements:
+
 [TEXT RENDERING]
-1. Render all visible text in Korean unless the user explicitly requests another language.
-2. Reproduce all user-provided text exactly as written, especially text enclosed in quotation marks.
-3. Preserve Korean text verbatim, including correct Hangul syllable blocks, consonants, vowels, spacing, punctuation, numbers, and symbols.
-4. Do not translate, romanize, paraphrase, abbreviate, rewrite, omit, duplicate, merge, split, or substitute any requested text.
-5. Render all text clearly, sharply, consistently, and legibly, without malformed, warped, melted, duplicated, or nonsensical characters.
+1. When the product brief contains important product names, model names, brand names, labels, slogans, feature names, key specifications, or other meaningful text, include the most relevant text in the final image rather than omitting it.
+2. Place text wherever it best supports readability and composition: on the product or packaging when appropriate, or in surrounding whitespace, title areas, captions, callouts, or information panels when that is more natural.
+3. Do not omit all text merely to avoid text-rendering difficulty. If the source material contains meaningful text, include relevant text whenever visually appropriate.
+4. Prioritize the product name, model name, brand name, key label, major feature, and most important product message when there is too much text to reproduce everything clearly.
+5. Render all visible text in Korean unless the user explicitly requests another language.
+6. Reproduce all user-provided text exactly as written, especially text enclosed in quotation marks.
+7. Preserve Korean text verbatim, including correct Hangul syllable blocks, consonants, vowels, spacing, punctuation, numbers, and symbols.
+8. Do not translate, romanize, paraphrase, abbreviate, rewrite, omit, duplicate, merge, split, or substitute requested text.
+9. Render text clearly, sharply, consistently, and legibly, without malformed, warped, melted, duplicated, or nonsensical characters.
+10. Integrate text naturally into the overall composition and maintain clear visual hierarchy, spacing, contrast, and alignment.
+11. If reproducing every text element would reduce legibility, render fewer but more important text elements accurately rather than removing text entirely.
 
 [PRODUCT ACCURACY]
 1. Accurately reproduce the product specified by the user, including its product name, overall shape, proportions, dimensions, structure, color, materials, surface finish, packaging, labels, controls, openings, buttons, ports, and other distinctive features.
 2. Preserve the product's recognizable identity and design language. Do not invent, remove, relocate, enlarge, shrink, simplify, or redesign important product features unless explicitly requested.
-3. Keep the relative size, aspect ratio, thickness, curvature, edges, corners, spacing, and placement of individual components physically consistent with the real product.
-4. If a product name, model name, brand name, logo, label, package text, or other identifying mark is provided, reproduce it accurately and place it naturally on the correct part of the product.
-5. When a reference image is provided, use it as the primary visual reference for the product's appearance, geometry, proportions, details, colors, materials, and markings.
+3. Keep the relative size, aspect ratio, thickness, curvature, edges, corners, spacing, and placement of individual components physically consistent with the intended product.
+4. Treat product names, labels, packaging text, markings, and identifying graphics as important parts of the product concept, not as optional decorative elements.
+5. If a product name, model name, brand name, logo, label, package text, specification, or identifying mark is provided, reproduce it accurately and place it naturally where appropriate.
+6. Reflect the product brief faithfully, including intended use, target user, functional features, distinctive design elements, and visual characteristics.
+7. Do not replace the specified product with a generic approximation, loosely similar object, or unrelated design.
+8. When a reference image is provided, use it as the primary visual reference for appearance, geometry, proportions, details, colors, materials, markings, and overall design identity.
+9. Prioritize product fidelity and recognizability over unnecessary decorative creativity whenever the two conflict.
 
 [PHOTOREALISM]
-1. Render the product as a realistic physical object rather than a generic approximation or stylized substitute.
-2. Use physically plausible materials, textures, reflections, shadows, highlights, transparency, gloss, roughness, and surface details appropriate to the product.
-3. Maintain realistic perspective, scale, depth, lighting, and contact shadows so that the product appears naturally present in the scene.
-4. Avoid distorted geometry, inconsistent proportions, duplicated components, missing parts, floating elements, impossible reflections, artificial-looking surfaces, or details that do not belong to the actual product.
-5. Prioritize product accuracy and recognizability over decorative creativity whenever the two conflict.
+1. Render the product as a realistic physical object rather than a generic, abstract, or overly stylized substitute unless the user explicitly requests a stylized treatment.
+2. Use physically plausible materials, textures, reflections, shadows, highlights, transparency, gloss, roughness, surface details, and manufacturing finishes appropriate to the product.
+3. Maintain realistic perspective, scale, depth, lighting, contact shadows, and spatial relationships so that the product appears naturally present in the scene.
+4. Make printed text, labels, logos, engravings, displays, stickers, packaging graphics, and other surface details appear physically integrated with appropriate perspective, texture, lighting, and material response.
+5. Preserve realistic geometry and avoid distorted proportions, duplicated components, missing parts, floating elements, impossible reflections, artificial surfaces, or physically inconsistent details.
+6. Use realistic product-photography composition, lighting, depth of field, and surface interaction when appropriate to the request.
+7. Ensure that the product's size, thickness, weight impression, structural balance, and material behavior feel physically believable.
+8. Keep edges, seams, joints, buttons, openings, interfaces, printed elements, and other fine details clean and structurally coherent.
+9. Avoid excessive beautification that changes the product's intended form, scale, material, or functional characteristics.
+10. Prioritize product accuracy, recognizability, readable text, and faithful reproduction of the product brief over decorative creativity whenever these goals conflict.
 
 {prompt}
 """.strip()
