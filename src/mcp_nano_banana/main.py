@@ -232,6 +232,9 @@ logger.info(f"MCP server '{mcp.name}' created.")
     description=(
         "Call this tool IMMEDIATELY when the user requests to create, draw, or generate a new image. "
         "Input: 'prompt' "
+        "IMPORTANT: Pass the user's original prompt in its original language, exactly as written. "
+        "For Korean requests, preserve the original Korean text. "
+        "Do NOT translate or convert the user's prompt into English. "
         "Output: Returns the generated image URL. "
         "CONSTRAINT: You MUST call this tool EXACTLY ONCE per user request. Do NOT call in parallel."
     ),
