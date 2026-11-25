@@ -20,6 +20,7 @@ from mcp_nano_banana.mcp_s3 import upload_file, ROOT, BUCKET, s3
 from google import genai
 from google.genai import types
 from google.genai import errors as genai_errors
+from mcp_nano_banana.gemini_error_log import save_gemini_error_log
 
 image_tasks = {}
 edit_image_tasks = {}
@@ -346,6 +347,7 @@ Requirements:
             enhanced_prompt = enhanced_prompt[:9000]
 
         client = get_genai_client()
+        request_id = uuid.uuid4().hex
         config_kwargs = {
             "response_modalities": ["IMAGE"],
             "image_config": types.ImageConfig(
@@ -419,6 +421,12 @@ Requirements:
                 )
                 break 
             except Exception as e:
+                await save_gemini_error_log(
+                    e,
+                    model=DEFAULT_MODEL[attempt],
+                    attempt=attempt + 1,
+                    request_id=request_id,
+                )
                 logger.warning(f"Gemini API attempt {attempt + 1} failed: {e}")
                 if attempt == max_gemini_retries - 1:
                     raise e
@@ -477,8 +485,8 @@ Requirements:
             
             temp_filename = f"{uuid.uuid4()}.{ext}"
             temp_path = os.path.join(ROOT, temp_filename)
-            log_filename = f"prompt{uuid.uuid4()}.txt"
-            log_path = os.path.join(ROOT, log_filename)
+            #log_filename = f"prompt{uuid.uuid4()}.txt"
+            #log_path = os.path.join(ROOT, log_filename)
             
             try:
                 with open(temp_path, "wb") as f:
@@ -486,17 +494,11 @@ Requirements:
                 s3_response = await upload_file(local_path=temp_filename, ctx=ctx)
                 uploaded_url = s3_response.url
 
-                with open(log_path, "w", encoding="utf-8") as g:
-                    g.write(enhanced_prompt)
-                await upload_file(local_path=log_filename, ctx=ctx)
-                
                 logger.info("s3 upload done")
                 
             finally:
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
-                if os.path.exists(log_path):
-                    os.remove(log_path)
             
 
         except Exception as s3_error:
